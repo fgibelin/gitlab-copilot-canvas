@@ -1,5 +1,5 @@
 // Unit tests for the work item type rules in the data layer. Run: node gitlab-rules-tests.mjs
-import { createService, normalizeTypeRules } from "../../canvas/gitlab.mjs";
+import { createService, normalizeTypeRules } from "../../gitlab-copilot-canvas/gitlab.mjs";
 
 let pass = 0;
 let fail = 0;

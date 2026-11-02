@@ -8,7 +8,7 @@ let opening = null;
 exports.activate = async (context) => {
     const load = (relative) => import(pathToFileURL(path.join(context.extensionPath, relative)).href);
     const [{ createWorkbench }, { startServer }, { renderWebview, relayRequest }, { registerTools }] = await Promise.all([
-        load("canvas/instance.mjs"), load("canvas/server.mjs"), load("vscode/webview.mjs"), load("vscode/tools.mjs"),
+        load("gitlab-copilot-canvas/instance.mjs"), load("gitlab-copilot-canvas/server.mjs"), load("vscode/webview.mjs"), load("vscode/tools.mjs"),
     ]);
     const output = vscode.window.createOutputChannel("GitLab Work Items");
     const log = (level, message) => output.appendLine(`[${level}] ${message}`);
@@ -31,11 +31,11 @@ exports.activate = async (context) => {
         let readyTimer;
         try {
             await workbench.init();
-            server = await startServer({ publicDir: path.join(context.extensionPath, "canvas/public"), workbench, log });
+            server = await startServer({ publicDir: path.join(context.extensionPath, "gitlab-copilot-canvas/public"), workbench, log });
             panel = vscode.window.createWebviewPanel("gitlabWorkItems", "GitLab", vscode.ViewColumn.Beside, {
                 enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "canvas/public"), vscode.Uri.joinPath(context.extensionUri, "vscode")],
+                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "gitlab-copilot-canvas/public"), vscode.Uri.joinPath(context.extensionUri, "vscode")],
             });
             const entry = { panel, workbench, server };
             active = entry;

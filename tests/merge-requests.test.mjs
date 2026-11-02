@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createService } from "../canvas/gitlab.mjs";
+import { createService } from "../gitlab-copilot-canvas/gitlab.mjs";
 
 const row = {
     iid: 42,

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { CanvasError, captured } from "./shim-sdk.mjs";
 import { getStore } from "./mock-service.mjs";
 
-const EXT_DIR = fileURLToPath(new URL("../../canvas", import.meta.url));
+const EXT_DIR = fileURLToPath(new URL("../../gitlab-copilot-canvas", import.meta.url));
 let pass = 0;
 let fail = 0;
 const check = (name, cond, detail = "") => {

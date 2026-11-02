@@ -11,7 +11,7 @@ configuration is required.
 
 | Host | Distribution | Integration |
 | --- | --- | --- |
-| Copilot App | [`canvas/`](https://github.com/fgibelin/gitlab-copilot-canvas/tree/main/canvas) or release archive | Native extension canvas and 20 agent actions |
+| Copilot App | [`gitlab-copilot-canvas/`](https://github.com/fgibelin/gitlab-copilot-canvas/tree/main/gitlab-copilot-canvas) or release archive | Native extension canvas and 20 agent actions |
 | VS Code desktop | `.vsix` from [Releases](https://github.com/fgibelin/gitlab-copilot-canvas/releases) | Native webview and 20 Copilot Chat tools |
 
 ### Prerequisites
@@ -68,7 +68,8 @@ App). Refreshing or reopening a panel in an existing session does not restart
 its extension server.
 
 You can also extract `gitlab-work-items.tar.gz` from Releases and copy its
-`canvas` directory to either destination above, naming it `gitlab-copilot-canvas`.
+top-level directory (`gitlab-copilot-canvas`, or `canvas` in v0.4.0 and earlier)
+to either destination above, naming it `gitlab-copilot-canvas`.
 The installed directory must directly contain `extension.mjs`.
 
 **Upgrading from v0.3.1 or earlier:** those releases installed the extension as
@@ -241,16 +242,16 @@ operation and platform-specific native controls still need host-specific QA.
 Source layout:
 
 ```text
-canvas/     Shared UI, GitLab service, Copilot App provider and manifest
-vscode/     VS Code host adapter, theme mapping and chat tool registrations
-scripts/    Installers, packaging and validation
-tests/      Portable automated tests
+gitlab-copilot-canvas/  Shared UI, GitLab service, Copilot App provider and manifest
+vscode/                 VS Code host adapter, theme mapping and chat tool registrations
+scripts/                Installers, packaging and validation
+tests/                  Portable automated tests
 ```
 
-`canvas/` has no runtime npm dependencies. Copilot App supplies its SDK; the
-VS Code adapter does not import it. Build dependencies live only at repository
-root. When changing action schemas, run `npm run sync-tools` to update the
-VS Code manifest; `npm run check` detects schema drift.
+`gitlab-copilot-canvas/` has no runtime npm dependencies. Copilot App supplies
+its SDK; the VS Code adapter does not import it. Build dependencies live only at
+repository root. When changing action schemas, run `npm run sync-tools` to
+update the VS Code manifest; `npm run check` detects schema drift.
 
 ## License
 

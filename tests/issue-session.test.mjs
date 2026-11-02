@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GitLabError } from "../canvas/gitlab.mjs";
-import { SESSION_LIMITS, buildIssueSession, launchWorktreeSession } from "../canvas/issue-session.mjs";
+import { GitLabError } from "../gitlab-copilot-canvas/gitlab.mjs";
+import { SESSION_LIMITS, buildIssueSession, launchWorktreeSession } from "../gitlab-copilot-canvas/issue-session.mjs";
 
 const NEW_ID = "6b1e0f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
 const OWN_ID = "11111111-2222-4333-8444-555555555555";

@@ -1,5 +1,5 @@
 // In-memory stand-in for the GitLab service (same method names and normalized shapes as createService in gitlab.mjs).
-import { GitLabError, SORTS, normalizeLabel } from "../../canvas/gitlab.mjs";
+import { GitLabError, SORTS, normalizeLabel } from "../../gitlab-copilot-canvas/gitlab.mjs";
 
 const HOST = "gitlab.com";
 const MIN = 60e3;

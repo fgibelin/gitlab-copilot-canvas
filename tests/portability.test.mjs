@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { detectProject } from "../canvas/gitlab.mjs";
+import { detectProject } from "../gitlab-copilot-canvas/gitlab.mjs";
 
 test("GitHub checkout is not treated as a GitLab project", async () => {
     assert.equal(await detectProject("/example", { git: async () => "origin git@github.com:someone/project.git (fetch)\n" }), null);

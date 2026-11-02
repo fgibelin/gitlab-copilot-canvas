@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { createWorkbench } from "../canvas/instance.mjs";
-import { startServer } from "../canvas/server.mjs";
+import { createWorkbench } from "../gitlab-copilot-canvas/instance.mjs";
+import { startServer } from "../gitlab-copilot-canvas/server.mjs";
 import { renderWebview, relayRequest } from "../vscode/webview.mjs";
 import { registerTools, toolContributions } from "../vscode/tools.mjs";
 import { makeMockService, mockDetect, resetStores } from "./harness/mock-service.mjs";
@@ -63,7 +63,7 @@ test("VS Code bridge uses authenticated HTTP routes and rejects arbitrary destin
 });
 
 test("renderer bridge correlates replies across reloads and delivers live events", async () => {
-    const source = (await readFile(new URL("../canvas/public/js/vscode-bridge.js", import.meta.url), "utf8")).replace("export const bridge", "globalThis.bridge");
+    const source = (await readFile(new URL("../gitlab-copilot-canvas/public/js/vscode-bridge.js", import.meta.url), "utf8")).replace("export const bridge", "globalThis.bridge");
     const boot = () => {
         const messages = [];
         let receive;
@@ -93,7 +93,7 @@ test("renderer bridge correlates replies across reloads and delivers live events
     assert.deepEqual(events, ["hello", "changed"]);
     assert.deepEqual(statuses, ["connecting", "live", "closed"]);
 });
-const pathPublic = () => fileURLToPath(new URL("../canvas/public/", import.meta.url));
+const pathPublic = () => fileURLToPath(new URL("../gitlab-copilot-canvas/public/", import.meta.url));
 
 test("all tools register; writes require the selected project and honor cancellation", async () => {
     resetStores();

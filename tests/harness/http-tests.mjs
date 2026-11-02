@@ -1,14 +1,14 @@
 // Server + workbench tests against the mock service. Run: node http-tests.mjs
 import http from "node:http";
 import net from "node:net";
-import { createWorkbench } from "../../canvas/instance.mjs";
-import { GitLabError } from "../../canvas/gitlab.mjs";
-import { startServer } from "../../canvas/server.mjs";
+import { createWorkbench } from "../../gitlab-copilot-canvas/instance.mjs";
+import { GitLabError } from "../../gitlab-copilot-canvas/gitlab.mjs";
+import { startServer } from "../../gitlab-copilot-canvas/server.mjs";
 import { fileURLToPath } from "node:url";
 import { getStore, makeMockService, mockDetect, resetStores } from "./mock-service.mjs";
 import fs from "node:fs";
 
-const PUBLIC_DIR = fileURLToPath(new URL("../../canvas/public/", import.meta.url));
+const PUBLIC_DIR = fileURLToPath(new URL("../../gitlab-copilot-canvas/public/", import.meta.url));
 let pass = 0;
 let fail = 0;
 const check = (name, cond, detail = "") => {
