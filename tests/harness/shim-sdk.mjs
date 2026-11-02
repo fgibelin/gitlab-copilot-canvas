@@ -9,7 +9,8 @@ export class CanvasError extends Error {
 
 export const createCanvas = (definition) => definition;
 
-export const captured = { config: null, session: null, logs: [] };
+// `toolCalls` records every tool the extension runs through session.rpc.tools.execute; `toolHandler` decides the result.
+export const captured = { config: null, session: null, logs: [], toolCalls: [], toolHandler: null };
 
 export async function joinSession(config) {
     captured.config = config;
@@ -18,6 +19,14 @@ export async function joinSession(config) {
         workspacePath: undefined,
         log: async (message, options) => {
             captured.logs.push({ message, ...options });
+        },
+        rpc: {
+            tools: {
+                execute: async (request) => {
+                    captured.toolCalls.push(request);
+                    return captured.toolHandler ? captured.toolHandler(request) : "ok";
+                },
+            },
         },
     };
     return captured.session;

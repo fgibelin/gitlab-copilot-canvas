@@ -5,6 +5,7 @@ import { GitLabError, SORTS, compactItem } from "./gitlab.mjs";
 const MAX_DESCRIPTION_CHARS = 30_000;
 const MAX_COMMENT_CHARS = 4_000;
 const MAX_COMMENTS = 30;
+const AGENT_LIMITS = Object.freeze({ description: MAX_DESCRIPTION_CHARS, commentChars: MAX_COMMENT_CHARS, comments: MAX_COMMENTS });
 
 // ---- schema building blocks -----------------------------------------------------------------------------------------
 const object = (properties, required) => ({ type: "object", properties, ...(required?.length && { required }), additionalProperties: false });
@@ -52,12 +53,13 @@ const briefMergeRequest = (mr) => ({
     mergeStatus: mr.mergeStatus,
 });
 
-function detailForAgent(d) {
+/** One work item as the agent reads it. `limits` caps the description and the newest comments that are included. */
+export function detailForAgent(d, limits = AGENT_LIMITS) {
     const notes = d.discussions.flatMap((thread) => thread.notes).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-    const shown = notes.slice(-MAX_COMMENTS);
+    const shown = limits.comments > 0 ? notes.slice(-limits.comments) : [];
     return {
         ...compactItem(d),
-        description: clip(d.description, MAX_DESCRIPTION_CHARS),
+        description: clip(d.description, limits.description),
         author: d.author?.username ?? null,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
@@ -66,7 +68,7 @@ function detailForAgent(d) {
         taskCompletion: d.tasks,
         children: d.children.map(brief),
         linked: linksOf(d.linked),
-        comments: shown.map((n) => ({ author: n.author?.username ?? null, at: n.createdAt, internal: n.internal, body: clip(n.body, MAX_COMMENT_CHARS) })),
+        comments: shown.map((n) => ({ author: n.author?.username ?? null, at: n.createdAt, internal: n.internal, body: clip(n.body, limits.commentChars) })),
         olderCommentsNotShown: notes.length - shown.length,
         canEdit: d.permissions.update,
     };

@@ -142,8 +142,18 @@ explicitly when remote detection is ambiguous.
   branches, descriptions and discussion, with paged results.
 - Create and edit merge requests, post comments, approve, close/reopen, and
   merge (immediately or through the pipeline using assistant actions).
+- Copilot App only: **Open session** in the work-item drawer starts a Copilot
+  chat in a new git worktree of the current project, with the work item as context.
 - Live updates between this extension's panels and agent actions, theme-aware
   rendering, and responsive layouts.
+
+**Open session** creates a separate local Copilot session in a new worktree
+and switches to it. Its first message holds the work item as JSON: title,
+description, metadata, the ten latest comments and the GitLab URL, marked as
+untrusted content rather than instructions. Nothing is written to GitLab. The
+worktree belongs to the project your Copilot session runs in, so use it from the
+repository that contains the code. Only a click starts a session; there is no agent
+action for it, and the button is hidden in VS Code.
 
 **Edits publish immediately under your signed-in GitLab identity.** Merging
 changes the target branch; the canvas asks for confirmation before merging.

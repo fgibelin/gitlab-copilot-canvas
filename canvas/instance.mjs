@@ -1,6 +1,7 @@
 // Per-canvas-instance state: which GitLab project is shown, the view the user (or the agent) set up, and
 // change notifications. The HTTP server and the agent actions both go through this one object.
 import { GitLabError, SORTS, createService, detectProject, parseIid, parseProjectRef } from "./gitlab.mjs";
+import { buildIssueSession } from "./issue-session.mjs";
 
 const invalid = (message) => new GitLabError("invalid", message);
 
@@ -56,8 +57,9 @@ const registry = new Set();
 /**
  * Creates the workbench for one canvas instance.
  * `detect`/`makeService` are injectable so tests can run without git or glab.
+ * `launchSession({ name, prompt })` opens a Copilot session for a work item; hosts that cannot do that leave it out.
  */
-export function createWorkbench({ instanceId, cwd, input = {}, detect = detectProject, makeService = createService }) {
+export function createWorkbench({ instanceId, cwd, input = {}, detect = detectProject, makeService = createService, launchSession = null }) {
     let project = null;
     let service = null;
     let problem = null;
@@ -82,7 +84,7 @@ export function createWorkbench({ instanceId, cwd, input = {}, detect = detectPr
         service = makeService({ host: ref.host, projectPath: ref.path });
         problem = null;
     };
-    const describe = () => ({ instanceId, configured: Boolean(service), project, problem, view: structuredClone(view) });
+    const describe = () => ({ instanceId, configured: Boolean(service), project, problem, view: structuredClone(view), capabilities: { openSession: typeof launchSession === "function" } });
 
     function init() {
         ready ??= (async () => {
@@ -157,6 +159,11 @@ export function createWorkbench({ instanceId, cwd, input = {}, detect = detectPr
         get: async (iid) => requireService().get(iid),
         listMergeRequests: async (filter, page) => requireService().listMergeRequests(filter, page),
         getMergeRequest: async (iid) => requireService().getMergeRequest(iid),
+        /** Starts a Copilot session in a new worktree with the work item in its first message. */
+        async openSession(iid) {
+            if (typeof launchSession !== "function") throw new GitLabError("unsupported", "Opening a Copilot session is only available in the GitHub Copilot app.");
+            return launchSession(buildIssueSession(await requireService().get(iid), project));
+        },
         // `by` ("ui" or "agent") lets other open panels tell who made a change.
         create: (data, by = "ui") => mutate(by, (svc) => svc.create(data)),
         update: (iid, patch, by = "ui") => mutate(by, (svc) => svc.update(iid, patch)),

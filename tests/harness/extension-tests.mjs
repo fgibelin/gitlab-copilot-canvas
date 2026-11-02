@@ -34,6 +34,7 @@ check("no reserved canvas.* names", names.every((n) => !n.startsWith("canvas."))
 check("every action has a handler and a description", canvas.actions.every((a) => typeof a.handler === "function" && a.description?.length > 20));
 check("expected actions exist", ["get_project_info", "list_work_items", "get_work_item", "create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items", "list_merge_requests", "get_merge_request", "create_merge_request", "update_merge_request", "comment_merge_request", "approve_merge_request", "merge_merge_request", "get_view", "set_view", "select_work_item", "refresh", "set_project"].every((n) => names.includes(n)), names.join(","));
 check("no delete action is exposed", !names.some((n) => /delete|remove_work/.test(n)));
+check("no action lets the agent open sessions (only a click in the panel does)", !names.some((n) => /session/i.test(n)));
 
 const ajv = new Ajv({ allErrors: true, strict: true, strictTypes: true, strictTuples: true, strictRequired: true });
 const validators = new Map();
@@ -140,6 +141,11 @@ const until = async (fn, ms = 2000) => {
 const apiGet = async (url, path) => {
     const u = new URL(url);
     const res = await fetch(`${u.origin}${path}`, { headers: { "x-canvas-token": u.searchParams.get("k") } });
+    return { status: res.status, json: await res.json() };
+};
+const apiPost = async (url, path, body = {}) => {
+    const u = new URL(url);
+    const res = await fetch(`${u.origin}${path}`, { method: "POST", headers: { "x-canvas-token": u.searchParams.get("k"), "content-type": "application/json" }, body: JSON.stringify(body) });
     return { status: res.status, json: await res.json() };
 };
 
@@ -345,6 +351,30 @@ check("... and the instance now works", r.total === 1 && r.items[0].title === "O
 r = await act("wi-nr", "get_project_info", {});
 check("get_project_info omits hierarchy/scopedLabelsExclusive when GitLab gave no rules", r.hierarchy === undefined && r.scopedLabelsExclusive === undefined && r.types.includes("Task"), JSON.stringify(r).slice(0, 200));
 
+// ---- open a Copilot session from a work item
+section("open session");
+const SESSION_ID = "6b1e0f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+check("state tells the panel that this host can open sessions", (await apiGet(o1.url, "/api/state")).json.data.capabilities?.openSession === true);
+captured.toolCalls.length = 0;
+captured.toolHandler = (request) => (request.name === "create_session" ? { resultType: "success", textResultForLlm: `Created session ${SESSION_ID}.` } : "Switched.");
+r = await apiPost(o1.url, "/api/items/1/session");
+check("clicking Open session -> 200 with the new session", r.status === 200 && r.json.data.sessionId === SESSION_ID && r.json.data.navigated === true, JSON.stringify(r));
+check("only create_session and navigate_to run, in that order", captured.toolCalls.map((c) => c.name).join() === "create_session,navigate_to", captured.toolCalls.map((c) => c.name).join());
+const [create, navigate] = captured.toolCalls;
+check("create_session starts a detached interactive session in a new worktree", create?.arguments.session_kind === "project" && create.arguments.workspace_type === "worktree" && create.arguments.detached === true && create.arguments.kickoff?.mode === "interactive" && create.arguments.project_id === undefined, JSON.stringify(create)?.slice(0, 300));
+check("the first message names the project and carries the item", /work item #1 in acme\/flask-demo/.test(create?.arguments.kickoff?.prompt) && create.arguments.kickoff.prompt.includes("Add clicker achievements and milestones") && create.arguments.name.startsWith("Issue #1: "), create?.arguments.kickoff?.prompt?.slice(0, 200));
+check("the UI is switched to the new session", navigate?.arguments.id === SESSION_ID, JSON.stringify(navigate));
+
+captured.toolCalls.length = 0;
+captured.toolHandler = () => ({ resultType: "denied", textResultForLlm: "The user denied this action." });
+r = await apiPost(o1.url, "/api/items/1/session");
+check("a denied tool call -> 502 session_failed, and the UI is not switched", r.status === 502 && r.json.error.code === "session_failed" && /denied/.test(r.json.error.message) && captured.toolCalls.length === 1, JSON.stringify(r));
+captured.toolCalls.length = 0;
+r = await apiPost(o1.url, "/api/items/99999/session");
+check("an unknown item -> 404 and no session is created", r.status === 404 && captured.toolCalls.length === 0, JSON.stringify(r));
+captured.toolHandler = null;
+captured.toolCalls.length = 0;
+
 // ---- close
 const closing = new URL(o1.url);
 await canvas.onClose(ctx("wi-1"));
@@ -369,12 +399,13 @@ if (raced.status === "fulfilled") {
 } else check("close racing open leaves no server behind", true, `open rejected: ${raced.reason?.message}`);
 
 section("hygiene");
-for (const file of ["extension.mjs", "actions.mjs", "instance.mjs", "server.mjs", "gitlab.mjs"]) {
+const SOURCES = ["extension.mjs", "actions.mjs", "instance.mjs", "server.mjs", "gitlab.mjs", "issue-session.mjs"];
+for (const file of SOURCES) {
     const src = fs.readFileSync(`${EXT_DIR}/${file}`, "utf8");
     check(`${file}: never writes to stdout (reserved for JSON-RPC)`, !/console\.(log|info|debug)\b|process\.stdout|stdio:\s*["']inherit["']/.test(src));
 }
 check("no package.json / node_modules inside the extension", !fs.existsSync(`${EXT_DIR}/package.json`) && !fs.existsSync(`${EXT_DIR}/node_modules`));
-check("only declared entry + siblings are imported (no bare npm imports)", ["extension.mjs", "actions.mjs", "instance.mjs", "server.mjs", "gitlab.mjs"].every((file) => [...fs.readFileSync(`${EXT_DIR}/${file}`, "utf8").matchAll(/^import .* from "([^"]+)"/gm)].every((m) => m[1].startsWith("./") || m[1].startsWith("node:") || m[1] === "@github/copilot-sdk/extension")));
+check("only declared entry + siblings are imported (no bare npm imports)", SOURCES.every((file) => [...fs.readFileSync(`${EXT_DIR}/${file}`, "utf8").matchAll(/^import .* from "([^"]+)"/gm)].every((m) => m[1].startsWith("./") || m[1].startsWith("node:") || m[1] === "@github/copilot-sdk/extension")));
 
 for (const id of ["wi-1", "wi-2", "wi-nr", "wi-fallback", "wi-peer"]) await canvas.onClose(ctx(id));
 [w1, w2, wPeer].forEach((w) => w.close());
