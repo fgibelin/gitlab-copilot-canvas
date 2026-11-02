@@ -5,7 +5,7 @@
 // header must be a loopback name (anti DNS-rebinding), and a browser Origin must be loopback or opaque.
 import { createServer } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { GitLabError } from "./gitlab.mjs";
 
@@ -92,12 +92,30 @@ function filterFromQuery(query) {
     return { state: get("state"), type: types.length > 1 ? types : types[0], label: query.getAll("label"), assignee: get("assignee"), milestone: get("milestone"), search: get("search"), sort: get("sort") };
 }
 
+// Keep the UI paired with the loaded backend, even if an upgrade replaces files while the provider is running.
+export async function loadPublicAssets(publicDir) {
+    const root = path.resolve(publicDir);
+    const assets = new Map();
+    const read = async (file) => assets.set(file, await readFile(file));
+    const walk = async (directory) => {
+        const entries = await readdir(directory, { withFileTypes: true });
+        await Promise.all(entries.map(async (entry) => {
+            const file = path.join(directory, entry.name);
+            if (entry.isDirectory()) await walk(file);
+            else if (entry.isFile() && MIME[path.extname(file).toLowerCase()]) await read(file);
+        }));
+    };
+    await Promise.all([read(path.join(root, "index.html")), read(path.join(root, "app.css")), walk(path.join(root, "js"))]);
+    return assets;
+}
+
 /**
  * Starts the server for one workbench.
  * @returns {{ url: string, port: number, token: string, close(): Promise<void> }}
  */
-export async function startServer({ publicDir, workbench, log = () => {} }) {
+export async function startServer({ publicDir, workbench, assets, log = () => {} }) {
     const root = path.resolve(publicDir);
+    const files = assets ?? await loadPublicAssets(root);
     const token = randomBytes(16).toString("hex");
     const expectedDigest = digest(token);
     const clients = new Set();
@@ -115,12 +133,8 @@ export async function startServer({ publicDir, workbench, log = () => {} }) {
         const absolute = path.resolve(root, relative);
         const type = MIME[path.extname(absolute).toLowerCase()];
         if (!type || !absolute.startsWith(root + path.sep)) return send(res, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
-        let body;
-        try {
-            body = await readFile(absolute);
-        } catch {
-            return send(res, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
-        }
+        const body = files.get(absolute);
+        if (body === undefined) return send(res, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
         send(res, 200, body, { "Content-Type": type, ...headers });
     }
 

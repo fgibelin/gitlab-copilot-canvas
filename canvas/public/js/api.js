@@ -14,11 +14,21 @@ export class ApiError extends Error {
     }
 }
 
+function responseData(status, payload) {
+    if (!payload?.ok) {
+        if (status === 404 && payload?.error?.code === "not_found" && payload.error.message === "Unknown endpoint.") {
+            const restart = bridge ? "Reload the VS Code window" : "Start a new Copilot session";
+            throw new ApiError("outdated_server", `This canvas is using an older extension server. ${restart}, then reopen the GitLab canvas. Refreshing this panel is not enough.`, status);
+        }
+        throw new ApiError(payload?.error?.code ?? "error", payload?.error?.message ?? "The request failed.", status);
+    }
+    return payload.data;
+}
+
 async function request(method, path, { query, body } = {}) {
     if (bridge) {
         const { status, payload } = await bridge.request(method, path, query, body);
-        if (!payload?.ok) throw new ApiError(payload?.error?.code ?? "error", payload?.error?.message ?? "The request failed.", status);
-        return payload.data;
+        return responseData(status, payload);
     }
     if (!token) throw new ApiError("no_token", "This page was opened without its access token. Reopen the canvas from the Copilot app.", 0);
     const url = new URL(path, location.href);
@@ -42,8 +52,7 @@ async function request(method, path, { query, body } = {}) {
     } catch {
         throw new ApiError("bad_response", `Unexpected response from the canvas server (HTTP ${response.status}).`, response.status);
     }
-    if (!payload?.ok) throw new ApiError(payload?.error?.code ?? "error", payload?.error?.message ?? "The request failed.", response.status);
-    return payload.data;
+    return responseData(response.status, payload);
 }
 
 export const api = {

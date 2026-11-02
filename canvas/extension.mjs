@@ -7,9 +7,10 @@ import { fileURLToPath } from "node:url";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { buildActions } from "./actions.mjs";
 import { createWorkbench } from "./instance.mjs";
-import { startServer } from "./server.mjs";
+import { loadPublicAssets, startServer } from "./server.mjs";
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
+const PUBLIC_ASSETS = await loadPublicAssets(PUBLIC_DIR);
 
 let session = null;
 
@@ -36,7 +37,7 @@ function entryFor(ctx, input = {}) {
 // Several `open` calls can arrive together (host re-open, provider reconnect); they must share one server.
 function ensureServer(entry) {
     if (entry.server) return Promise.resolve(entry.server);
-    entry.starting ??= startServer({ publicDir: PUBLIC_DIR, workbench: entry.workbench, log })
+    entry.starting ??= startServer({ publicDir: PUBLIC_DIR, assets: PUBLIC_ASSETS, workbench: entry.workbench, log })
         .then((server) => {
             entry.server = server;
             return server;
