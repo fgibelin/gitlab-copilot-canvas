@@ -93,7 +93,7 @@ check("merge request read/write schemas", ok("get_merge_request", { iid: 42 }) &
 check("merge request merge options", ok("merge_merge_request", { iid: 42, mergeWhenPipelineSucceeds: true, shouldRemoveSourceBranch: false }) && bad("merge_merge_request", { iid: 42, mergeWhenPipelineSucceeds: "yes" }));
 
 // -------------------------------------------------------------------------------------------
-const ctx = (instanceId, extra = {}) => ({ sessionId: "s1", extensionId: "project:gitlab-work-items", canvasId: "gitlab-work-items", instanceId, host: {}, session: { workingDirectory: "/tmp/work" }, ...extra });
+const ctx = (instanceId, extra = {}) => ({ sessionId: "s1", extensionId: "project:gitlab-copilot-canvas", canvasId: "gitlab-work-items", instanceId, host: {}, session: { workingDirectory: "/tmp/work" }, ...extra });
 const act = (instanceId, name, input) => canvas.actions.find((a) => a.name === name).handler(ctx(instanceId, { actionName: name, input }));
 const failsWith = async (promise, code, pattern) => {
     try {

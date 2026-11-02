@@ -59,17 +59,23 @@ node scripts/install.mjs --user
 node scripts/install.mjs --project /path/to/your/gitlab-repository
 ```
 
-The user installation goes to `$COPILOT_HOME/extensions/gitlab-work-items`
-(`~/.copilot/extensions/gitlab-work-items` by default). A project installation
-goes to `<git-root>/.github/extensions/gitlab-work-items`. The installer refuses
+The user installation goes to `$COPILOT_HOME/extensions/gitlab-copilot-canvas`
+(`~/.copilot/extensions/gitlab-copilot-canvas` by default). A project installation
+goes to `<git-root>/.github/extensions/gitlab-copilot-canvas`. The installer refuses
 to overwrite an existing extension. To update, explicitly move the old folder
 aside, install the new one and start a new Copilot session (or restart Copilot
 App). Refreshing or reopening a panel in an existing session does not restart
 its extension server.
 
 You can also extract `gitlab-work-items.tar.gz` from Releases and copy its
-`canvas` directory to either destination above, naming it `gitlab-work-items`.
+`canvas` directory to either destination above, naming it `gitlab-copilot-canvas`.
 The installed directory must directly contain `extension.mjs`.
+
+**Upgrading from v0.3.1 or earlier:** those releases installed the extension as
+`gitlab-work-items`. Move any `extensions/gitlab-work-items` folder aside (user
+and project scope) after installing `gitlab-copilot-canvas`; otherwise both
+copies register the GitLab canvas. The canvas type and agent actions are
+unchanged.
 
 Start a new session in a GitLab repository and ask:
 

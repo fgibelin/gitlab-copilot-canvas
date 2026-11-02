@@ -26,14 +26,14 @@ test("installer supports user scope and another repository without overwriting e
     const repo = path.join(root, "another-project");
     try {
         execFileSync(process.execPath, [script, "--user"], { env: { ...process.env, COPILOT_HOME: home } });
-        const target = path.join(home, "extensions/gitlab-work-items");
+        const target = path.join(home, "extensions/gitlab-copilot-canvas");
         assert.match(await readFile(path.join(target, "extension.mjs"), "utf8"), /joinSession/);
         assert.match(await readFile(path.join(target, "LICENSE"), "utf8"), /MIT License/);
         assert.throws(() => execFileSync(process.execPath, [script, "--user"], { env: { ...process.env, COPILOT_HOME: home }, stdio: "pipe" }), /Already installed/);
         await mkdir(repo);
         execFileSync("git", ["init", "--quiet", repo]);
         execFileSync(process.execPath, [script, "--project", repo]);
-        assert.equal(JSON.parse(await readFile(path.join(repo, ".github/extensions/gitlab-work-items/copilot-extension.json"), "utf8")).name, "gitlab-work-items");
+        assert.equal(JSON.parse(await readFile(path.join(repo, ".github/extensions/gitlab-copilot-canvas/copilot-extension.json"), "utf8")).name, "gitlab-copilot-canvas");
         assert.throws(() => execFileSync(process.execPath, [script], { stdio: "pipe" }), /Usage/);
     } finally { await rm(root, { recursive: true, force: true }); }
 });
