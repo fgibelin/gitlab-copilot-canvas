@@ -14,7 +14,7 @@ else if (args.length === 2 && args[0] === "--project") {
     console.error("Usage: node scripts/install.mjs --user | --project /path/to/git/repository");
     process.exit(1);
 }
-const destination = path.join(base, "gitlab-work-items");
+const destination = path.join(base, "gitlab-copilot-canvas");
 try {
     await lstat(destination);
     throw new Error(`Already installed at ${destination}. Move or remove that copy explicitly before reinstalling.`);
@@ -23,4 +23,4 @@ try {
 }
 await mkdir(base, { recursive: true });
 await cp(fileURLToPath(new URL("../canvas/", import.meta.url)), destination, { recursive: true, force: false, errorOnExist: true });
-console.log(`Installed GitLab work items at ${destination}. Start a new Copilot session to load it.`);
+console.log(`Installed the GitLab canvas at ${destination}. Start a new Copilot session to load it.`);
