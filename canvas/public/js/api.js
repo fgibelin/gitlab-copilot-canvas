@@ -52,11 +52,18 @@ export const api = {
     meta: (force = false) => request("GET", "/api/meta", { query: force ? { force: 1 } : {} }),
     items: (filters, { first, after } = {}) => request("GET", "/api/items", { query: { ...filters, first, after } }),
     item: (iid) => request("GET", `/api/items/${iid}`),
+    mergeRequests: (filters = {}, paging = {}) => request("GET", "/api/merge-requests", { query: { ...filters, ...paging } }),
+    mergeRequest: (iid) => request("GET", `/api/merge-requests/${iid}`),
     create: (data) => request("POST", "/api/items", { body: data }),
     update: (iid, patch) => request("PATCH", `/api/items/${iid}`, { body: patch }),
     comment: (iid, body) => request("POST", `/api/items/${iid}/comments`, { body: { body } }),
     link: (iid, target, type) => request("POST", `/api/items/${iid}/links`, { body: { target, type } }),
     unlink: (iid, target) => request("DELETE", `/api/items/${iid}/links/${target}`),
+    createMergeRequest: (data) => request("POST", "/api/merge-requests", { body: data }),
+    updateMergeRequest: (iid, patch) => request("PUT", `/api/merge-requests/${iid}`, { body: patch }),
+    commentMergeRequest: (iid, body) => request("POST", `/api/merge-requests/${iid}/comments`, { body: { body } }),
+    approveMergeRequest: (iid) => request("POST", `/api/merge-requests/${iid}/approve`, { body: {} }),
+    mergeMergeRequest: (iid, options = {}) => request("POST", `/api/merge-requests/${iid}/merge`, { body: options }),
     setView: (patch) => request("PUT", "/api/view", { body: patch }),
 };
 

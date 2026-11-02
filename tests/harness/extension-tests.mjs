@@ -26,13 +26,13 @@ const canvas = captured.config?.canvases?.[0];
 section("declaration");
 check("joinSession got one canvas", captured.config?.canvases?.length === 1);
 check("canvas id", canvas?.id === "gitlab-work-items");
-check("displayName + description", canvas.displayName === "GitLab work items" && canvas.description.length > 30 && canvas.description.length < 300, canvas.description?.length);
+check("displayName + description", canvas.displayName === "GitLab project management" && canvas.description.length > 30 && canvas.description.length < 300, canvas.description?.length);
 check("ready message logged through session.log (not stdout)", captured.logs.some((l) => /ready/.test(l.message) && l.level === "info" && l.ephemeral === true), JSON.stringify(captured.logs));
 const names = canvas.actions.map((a) => a.name);
 check("unique action names", new Set(names).size === names.length, names.join(","));
 check("no reserved canvas.* names", names.every((n) => !n.startsWith("canvas.")));
 check("every action has a handler and a description", canvas.actions.every((a) => typeof a.handler === "function" && a.description?.length > 20));
-check("expected actions exist", ["get_project_info", "list_work_items", "get_work_item", "create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items", "get_view", "set_view", "select_work_item", "refresh", "set_project"].every((n) => names.includes(n)), names.join(","));
+check("expected actions exist", ["get_project_info", "list_work_items", "get_work_item", "create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items", "list_merge_requests", "get_merge_request", "create_merge_request", "update_merge_request", "comment_merge_request", "approve_merge_request", "merge_merge_request", "get_view", "set_view", "select_work_item", "refresh", "set_project"].every((n) => names.includes(n)), names.join(","));
 check("no delete action is exposed", !names.some((n) => /delete|remove_work/.test(n)));
 
 const ajv = new Ajv({ allErrors: true, strict: true, strictTypes: true, strictTuples: true, strictRequired: true });
@@ -87,6 +87,9 @@ check("set_view modes", ok("set_view", { mode: "board", groupBy: "scope:workflow
 check("set_view unknown filter rejected", bad("set_view", { filters: { colour: "red" } }));
 check("select_work_item iid optional", ok("select_work_item", {}) && ok("select_work_item", { iid: 4 }));
 check("set_project requires project", bad("set_project", {}) && ok("set_project", { project: "a/b" }));
+check("merge request list filters", ok("list_merge_requests", { state: "all", search: "pipeline" }) && bad("list_merge_requests", { state: "mergedx" }));
+check("merge request read/write schemas", ok("get_merge_request", { iid: 42 }) && ok("create_merge_request", { title: "t", sourceBranch: "feature/x", targetBranch: "main" }) && ok("update_merge_request", { iid: 42, state: "closed" }) && ok("comment_merge_request", { iid: 42, body: "review" }));
+check("merge request merge options", ok("merge_merge_request", { iid: 42, mergeWhenPipelineSucceeds: true, shouldRemoveSourceBranch: false }) && bad("merge_merge_request", { iid: 42, mergeWhenPipelineSucceeds: "yes" }));
 
 // -------------------------------------------------------------------------------------------
 const ctx = (instanceId, extra = {}) => ({ sessionId: "s1", extensionId: "project:gitlab-work-items", canvasId: "gitlab-work-items", instanceId, host: {}, session: { workingDirectory: "/tmp/work" }, ...extra });
@@ -144,7 +147,7 @@ const apiGet = async (url, path) => {
 section("open / idempotency / close");
 getStore("acme/flask-demo").latency = 0;
 const [o1, o2, o3] = await Promise.all([canvas.open(ctx("wi-1", { input: {} })), canvas.open(ctx("wi-1", { input: { project: "ignored/after-first-open" } })), canvas.open(ctx("wi-1"))]);
-check("open returns url/title/status", /^http:\/\/127\.0\.0\.1:\d+\/\?k=[0-9a-f]{32}$/.test(o1.url) && o1.title === "GitLab work items" && o1.status === "acme/flask-demo", JSON.stringify(o1));
+check("open returns url/title/status", /^http:\/\/127\.0\.0\.1:\d+\/\?k=[0-9a-f]{32}$/.test(o1.url) && o1.title === "GitLab project management" && o1.status === "acme/flask-demo", JSON.stringify(o1));
 check("concurrent opens share ONE server (same url)", o1.url === o2.url && o2.url === o3.url, `${o1.url} ${o2.url} ${o3.url}`);
 check("later open input is ignored for an existing instance (idempotent)", o2.status === "acme/flask-demo");
 const again = await canvas.open(ctx("wi-1", { input: {} }));
@@ -202,6 +205,23 @@ check("get_work_item: comments oldest-to-newest and flagged internal", r.comment
 check("get_work_item: description present", r.description.includes("Acceptance criteria"));
 let f = await failsWith(act("wi-1", "get_work_item", { iid: 99999 }), "not_found", /99999/);
 check("get_work_item on a missing item -> CanvasError(not_found)", f.ok, f.why);
+
+let mrPage = await act("wi-1", "list_merge_requests", {});
+check("list_merge_requests returns open MRs", mrPage.returned === 1 && mrPage.items[0].iid === 1 && mrPage.items[0].sourceBranch === "feature/achievement-milestones");
+let mr = await act("wi-1", "get_merge_request", { iid: 1 });
+check("get_merge_request includes detail and discussion", mr.iid === 1 && mr.author === "alice" && mr.comments.length === 0 && mr.description.includes("milestone"));
+mr = await act("wi-1", "create_merge_request", { title: "Agent-created MR", sourceBranch: "feature/agent", targetBranch: "main", draft: true, description: "Created by agent" });
+check("create_merge_request returns compact result", mr.iid === 2 && mr.draft && mr.sourceBranch === "feature/agent" && !("description" in mr));
+mr = await act("wi-1", "update_merge_request", { iid: 2, title: "Agent-edited MR", draft: false, state: "closed" });
+check("update_merge_request applies title, draft and state", mr.title === "Agent-edited MR" && !mr.draft && mr.state === "closed");
+mr = await act("wi-1", "update_merge_request", { iid: 2, state: "opened" });
+check("update_merge_request reopens", mr.state === "opened");
+const mrNote = await act("wi-1", "comment_merge_request", { iid: 2, body: "Reviewed." });
+check("comment_merge_request publishes comment", mrNote.iid === 2 && mrNote.commentId);
+mr = await act("wi-1", "approve_merge_request", { iid: 2 });
+check("approve_merge_request returns MR status", mr.iid === 2 && mr.state === "opened");
+mr = await act("wi-1", "merge_merge_request", { iid: 2, mergeWhenPipelineSucceeds: true });
+check("merge_merge_request merges and returns result", mr.iid === 2 && mr.state === "merged");
 
 const store = getStore("acme/flask-demo");
 const since = (watch, from, type) => watch.events.slice(from).filter((e) => !type || e.type === type);

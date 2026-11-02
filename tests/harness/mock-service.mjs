@@ -139,7 +139,7 @@ export function getStore(path) {
     let store = stores.get(key);
     if (store) return store;
     if (!SEEDS[key]) return null;
-    store = { path: key, recs: new Map(), links: [], users: usersFor(config.avatarBase), labels: LABEL_SPECS.map(([title, color, textColor, description], i) => normalizeLabel({ id: `gid://gitlab/ProjectLabel/${i + 1}`, title, color, textColor, description })), milestones: [{ id: "gid://gitlab/Milestone/1", title: "v1.0", state: "active", dueDate: ymd(14), startDate: ymd(-30) }, { id: "gid://gitlab/Milestone/2", title: "v1.1", state: "active", dueDate: ymd(60), startDate: ymd(15) }, { id: "gid://gitlab/Milestone/3", title: "Backlog", state: "active", dueDate: null, startDate: null }], latency: 12, failNext: null, calls: [], nextIid: 0, nextNote: 100, nextLink: 100 };
+    store = { path: key, recs: new Map(), links: [], mergeRequests: new Map(), users: usersFor(config.avatarBase), labels: LABEL_SPECS.map(([title, color, textColor, description], i) => normalizeLabel({ id: `gid://gitlab/ProjectLabel/${i + 1}`, title, color, textColor, description })), milestones: [{ id: "gid://gitlab/Milestone/1", title: "v1.0", state: "active", dueDate: ymd(14), startDate: ymd(-30) }, { id: "gid://gitlab/Milestone/2", title: "v1.1", state: "active", dueDate: ymd(60), startDate: ymd(15) }, { id: "gid://gitlab/Milestone/3", title: "Backlog", state: "active", dueDate: null, startDate: null }], latency: 12, failNext: null, calls: [], nextIid: 0, nextNote: 100, nextLink: 100, nextMrIid: 1, nextMrNote: 100 };
     if (key === "acme/empty") {
         store.labels = [];
         store.milestones = [];
@@ -147,6 +147,15 @@ export function getStore(path) {
     }
     SEEDS[key](store);
     store.nextIid = Math.max(0, ...store.recs.keys()) + 1;
+    if (key === "acme/flask-demo") {
+        store.mergeRequests.set(1, {
+            iid: 1, title: "Add achievement milestone handling", description: "Implements milestone notifications for unlocked achievements.",
+            state: "opened", sourceBranch: "feature/achievement-milestones", targetBranch: "main", draft: false,
+            mergeStatus: "can_be_merged", author: "alice", assignees: ["feured"], reviewers: ["bob"], labels: ["frontend"],
+            createdAt: ago(DAY), updatedAt: ago(40 * MIN), mergedAt: null, closedAt: null, notes: [],
+        });
+        store.nextMrIid = 2;
+    }
     stores.set(key, store);
     return store;
 }
@@ -271,6 +280,26 @@ function checkDate(value, field) {
 function checkNames(store, kind, names, exists) {
     const unknown = asList(names).filter((n) => !exists(String(n).replace(/^@/, "")));
     if (unknown.length) throw invalid(`Unknown ${kind}: ${unknown.join(", ")}.`);
+}
+
+function toMergeRequest(store, mr) {
+    return {
+        iid: mr.iid, title: mr.title, description: mr.description, state: mr.state,
+        webUrl: `https://${HOST}/${store.path}/-/merge_requests/${mr.iid}`,
+        createdAt: mr.createdAt, updatedAt: mr.updatedAt, mergedAt: mr.mergedAt, closedAt: mr.closedAt,
+        sourceBranch: mr.sourceBranch, targetBranch: mr.targetBranch, draft: mr.draft, mergeStatus: mr.mergeStatus,
+        author: userOf(store, mr.author) ?? null,
+        assignees: mr.assignees.map((username) => userOf(store, username)).filter(Boolean),
+        reviewers: mr.reviewers.map((username) => userOf(store, username)).filter(Boolean),
+        labels: [...mr.labels], comments: mr.notes.length,
+    };
+}
+
+function toMergeRequestDetail(store, mr) {
+    return {
+        ...toMergeRequest(store, mr),
+        discussions: mr.notes.map((note) => ({ id: note.id, body: note.body, createdAt: note.createdAt, author: userOf(store, note.author) ?? null, internal: false })),
+    };
 }
 
 export function makeMockService({ host, projectPath }) {
@@ -421,6 +450,92 @@ export function makeMockService({ host, projectPath }) {
             store.links = store.links.filter((l) => !((l.a === a && l.b === b) || (l.a === b && l.b === a)));
             if (store.links.length === before) throw new GitLabError("not_found", `#${a} is not linked to #${b}.`);
             return clone(toDetail(store, store.recs.get(a)));
+        },
+        async listMergeRequests(filter = {}, { first = 50, page = 1 } = {}) {
+            const store = await gate("listMergeRequests", { filter, first, page });
+            const state = String(filter.state ?? "opened").toLowerCase();
+            if (!["opened", "closed", "merged", "all"].includes(state)) throw invalid("Unknown merge request state.");
+            const query = String(filter.search ?? "").toLowerCase();
+            const all = [...store.mergeRequests.values()]
+                .filter((mr) => (state === "all" || mr.state === state) && (!query || `${mr.title}\n${mr.description}`.toLowerCase().includes(query)))
+                .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+            const start = (page - 1) * first;
+            const rows = all.slice(start, start + first);
+            const hasNextPage = start + rows.length < all.length;
+            return clone({ items: rows.map((mr) => toMergeRequest(store, mr)), total: all.length, hasNextPage, nextPage: hasNextPage ? page + 1 : null });
+        },
+        async getMergeRequest(iid) {
+            const store = await gate("getMergeRequest", { iid });
+            const mr = store.mergeRequests.get(Number(iid));
+            if (!mr) throw new GitLabError("not_found", `Merge request !${iid} does not exist in ${store.path}.`);
+            return clone(toMergeRequestDetail(store, mr));
+        },
+        async createMergeRequest(input = {}) {
+            const store = await gate("createMergeRequest", input, { mutation: true });
+            const title = String(input.title ?? "").trim();
+            if (!title) throw invalid("A title is required.");
+            if (!String(input.sourceBranch ?? "").trim() || !String(input.targetBranch ?? "").trim()) throw invalid("A source branch and target branch are required.");
+            if (title.includes("FAIL ME")) throw new GitLabError("mutation_failed", "Title is not allowed (mock failure).");
+            const mr = {
+                iid: store.nextMrIid++, title, description: String(input.description ?? ""), state: "opened",
+                sourceBranch: String(input.sourceBranch).trim(), targetBranch: String(input.targetBranch).trim(),
+                draft: Boolean(input.draft), mergeStatus: "unchecked", author: "feured", assignees: [], reviewers: [],
+                labels: asList(input.labels), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+                mergedAt: null, closedAt: null, notes: [],
+            };
+            store.mergeRequests.set(mr.iid, mr);
+            return clone(toMergeRequest(store, mr));
+        },
+        async updateMergeRequest(iid, patch = {}) {
+            const store = await gate("updateMergeRequest", { iid, patch }, { mutation: true });
+            const mr = store.mergeRequests.get(Number(iid));
+            if (!mr) throw new GitLabError("not_found", `Merge request !${iid} does not exist in ${store.path}.`);
+            if (patch.title !== undefined) {
+                const title = String(patch.title).trim();
+                if (!title) throw invalid("A title is required.");
+                if (title.includes("FAIL ME")) throw new GitLabError("mutation_failed", "Title is not allowed (mock failure).");
+                mr.title = title;
+            }
+            if (patch.description !== undefined) mr.description = String(patch.description);
+            if (patch.targetBranch !== undefined) {
+                if (!String(patch.targetBranch).trim()) throw invalid("A target branch is required.");
+                mr.targetBranch = String(patch.targetBranch).trim();
+            }
+            if (patch.draft !== undefined) mr.draft = Boolean(patch.draft);
+            if (patch.labels !== undefined) mr.labels = asList(patch.labels);
+            if (patch.state !== undefined) {
+                if (!["opened", "open", "closed", "close", "reopen"].includes(String(patch.state).toLowerCase())) throw invalid('state must be "opened" or "closed".');
+                mr.state = /^clos/i.test(patch.state) ? "closed" : "opened";
+                mr.closedAt = mr.state === "closed" ? new Date().toISOString() : null;
+            }
+            touch(mr);
+            return clone(toMergeRequest(store, mr));
+        },
+        async commentMergeRequest(iid, body) {
+            const store = await gate("commentMergeRequest", { iid, body }, { mutation: true });
+            const mr = store.mergeRequests.get(Number(iid));
+            if (!mr) throw new GitLabError("not_found", `Merge request !${iid} does not exist in ${store.path}.`);
+            if (!String(body ?? "").trim()) throw invalid("The comment is empty.");
+            const note = { id: `gid://gitlab/Note/${store.nextMrNote++}`, body: String(body), author: "feured", createdAt: new Date().toISOString() };
+            mr.notes.push(note);
+            touch(mr);
+            return clone({ ...note, author: userOf(store, note.author), internal: false });
+        },
+        async approveMergeRequest(iid) {
+            const store = await gate("approveMergeRequest", { iid }, { mutation: true });
+            const mr = store.mergeRequests.get(Number(iid));
+            if (!mr) throw new GitLabError("not_found", `Merge request !${iid} does not exist in ${store.path}.`);
+            return clone(toMergeRequest(store, mr));
+        },
+        async mergeMergeRequest(iid) {
+            const store = await gate("mergeMergeRequest", { iid }, { mutation: true });
+            const mr = store.mergeRequests.get(Number(iid));
+            if (!mr) throw new GitLabError("not_found", `Merge request !${iid} does not exist in ${store.path}.`);
+            if (mr.state !== "opened") throw new GitLabError("mutation_failed", "Only open merge requests may be merged.");
+            mr.state = "merged";
+            mr.mergedAt = new Date().toISOString();
+            touch(mr);
+            return clone(toMergeRequest(store, mr));
         },
     };
 }

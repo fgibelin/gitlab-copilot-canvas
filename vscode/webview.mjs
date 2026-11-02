@@ -16,7 +16,7 @@ export async function renderWebview(webview, root, uriFile) {
 export async function relayRequest(message, server) {
     const methods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
     if (typeof message.id !== "string" || !/^[0-9a-f-]{36}$/.test(message.id) || !methods.includes(message.method) || typeof message.path !== "string" ||
-        !/^\/api\/(?:state|project|meta|view|items(?:\/\d+(?:\/(?:comments|links(?:\/\d+)?))?)?)$/.test(message.path)) {
+        !/^\/api\/(?:state|project|meta|view|items(?:\/\d+(?:\/(?:comments|links(?:\/\d+)?))?)?|merge-requests(?:\/\d+(?:\/(?:comments|approve|merge))?)?)$/.test(message.path)) {
         throw new Error("Invalid canvas request");
     }
     if (JSON.stringify(message).length > 1024 * 1024) throw new Error("Canvas request exceeds 1 MiB");

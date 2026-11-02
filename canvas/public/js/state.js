@@ -25,6 +25,7 @@ function emit(...topics) {
 
 export const state = {
     phase: "boot", // boot | ready | no-project | error
+    domain: "items",
     fatal: null,
     instanceId: null,
     project: null,
@@ -93,6 +94,12 @@ export function updateView(patch) {
     emit("view");
     if (fetchKey() !== before) loadItems();
     else emit("items");
+}
+
+export function setDomain(domain) {
+    if (!["items", "merge_requests"].includes(domain) || state.domain === domain) return;
+    state.domain = domain;
+    emit("domain");
 }
 
 export function resetFilters() {
@@ -414,6 +421,7 @@ function handleEvent(type, data) {
         helloSeen = true;
     } else if (type === "changed") {
         scheduleRefresh({ meta: data?.meta === true });
+        emit("changed");
     } else if (type === "view" && data?.view) {
         const before = fetchKey();
         const selected = state.view.selected;

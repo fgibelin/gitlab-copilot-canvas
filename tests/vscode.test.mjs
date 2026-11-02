@@ -36,6 +36,20 @@ test("VS Code bridge uses authenticated HTTP routes and rejects arbitrary destin
         const iid = created.payload.data.iid;
         const updated = await request("PATCH", `/api/items/${iid}`, { state: "closed" });
         assert.equal(updated.payload.data.state, "closed");
+        const mergeRequests = await request("GET", "/api/merge-requests");
+        assert.equal(mergeRequests.payload.data.items[0].iid, 1);
+        const mr = await request("POST", "/api/merge-requests", { title: "Via VS Code", sourceBranch: "feature/vscode", targetBranch: "main" });
+        assert.equal(mr.payload.data.iid, 2);
+        const mrUpdate = await request("PUT", "/api/merge-requests/2", { state: "closed" });
+        assert.equal(mrUpdate.payload.data.state, "closed");
+        const mrReopen = await request("PUT", "/api/merge-requests/2", { state: "opened" });
+        assert.equal(mrReopen.payload.data.state, "opened");
+        const mrComment = await request("POST", "/api/merge-requests/2/comments", { body: "Reviewed through the bridge." });
+        assert.equal(mrComment.payload.data.body, "Reviewed through the bridge.");
+        const mrApproval = await request("POST", "/api/merge-requests/2/approve", {});
+        assert.equal(mrApproval.payload.data.iid, 2);
+        const mrMerge = await request("POST", "/api/merge-requests/2/merge", {});
+        assert.equal(mrMerge.payload.data.state, "merged");
         const invalid = await request("POST", "/api/project", { project: "invalid" });
         assert.equal(invalid.status, 400);
         for (const destination of ["https://example.com/api/items", "//example.com/api/items", "/js/app.js", "/api/../../etc/passwd"]) {
@@ -90,13 +104,15 @@ test("all tools register; writes require the selected project and honor cancella
     };
     try {
         registerTools(vscode, { subscriptions: [] }, () => ({ workbench: wb }), () => {});
-        assert.equal(tools.size, 13);
+        assert.equal(tools.size, 20);
         assert.equal(toolContributions().length, tools.size);
         const create = tools.get("gitlab_canvas_create_work_item");
+        const merge = tools.get("gitlab_canvas_merge_merge_request");
         const cancelled = { isCancellationRequested: true };
         const allowed = { isCancellationRequested: false };
         const input = { title: "Tool-created item", expectedProject: "gitlab.com/acme/flask-demo" };
         assert.match(create.prepareInvocation({ input }).confirmationMessages.message, /gitlab.com\/acme\/flask-demo/);
+        assert.match(merge.prepareInvocation({ input: { iid: 1, expectedProject: "gitlab.com/acme/flask-demo" } }).confirmationMessages.message, /gitlab.com\/acme\/flask-demo/);
         await assert.rejects(create.invoke({ input: { ...input, expectedProject: "gitlab.com/wrong/project" } }, allowed), /does not match/);
         await assert.rejects(create.invoke({ input }, cancelled), vscode.CancellationError);
         const result = await create.invoke({ input }, allowed);

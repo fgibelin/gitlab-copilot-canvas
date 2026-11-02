@@ -1,4 +1,4 @@
-// GitLab work items canvas: a list/board workbench for the GitLab project behind the session's git remote.
+// GitLab project canvas: work items and merge requests for the project behind the session's git remote.
 //
 // One workbench (state + GitLab access) and one loopback server per open panel. The panel UI lives in ./public; the
 // agent drives the same workbench through the actions in ./actions.mjs.
@@ -58,8 +58,8 @@ async function disposeEntry(instanceId) {
 
 const canvas = createCanvas({
     id: "gitlab-work-items",
-    displayName: "GitLab work items",
-    description: "Browse, triage and edit the GitLab work items (issues, tasks, incidents) of this repository's project as a list or a board, with a detail drawer.",
+    displayName: "GitLab project management",
+    description: "Browse and manage this GitLab project's work items and merge requests, including merge request discussion, approval and merge.",
     inputSchema: {
         type: "object",
         properties: { project: { type: "string", maxLength: 300, description: "GitLab project as group/project or a project URL. Defaults to the GitLab remote of the session's repository." } },
@@ -77,7 +77,7 @@ const canvas = createCanvas({
         }
         await entry.workbench.init();
         const { project } = entry.workbench.describe();
-        return { url: server.url, title: "GitLab work items", status: project?.path ?? "No project selected" };
+        return { url: server.url, title: "GitLab project management", status: project?.path ?? "No project selected" };
     },
 
     onClose: async (ctx) => {
@@ -86,4 +86,4 @@ const canvas = createCanvas({
 });
 
 session = await joinSession({ canvases: [canvas] });
-log("info", "GitLab work items canvas ready.");
+log("info", "GitLab project management canvas ready.");

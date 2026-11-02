@@ -1,7 +1,10 @@
 import { buildActions } from "../canvas/actions.mjs";
 import { GitLabError } from "../canvas/gitlab.mjs";
 
-export const WRITES = new Set(["create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items"]);
+export const WRITES = new Set([
+    "create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items",
+    "create_merge_request", "update_merge_request", "comment_merge_request", "approve_merge_request", "merge_merge_request",
+]);
 
 export function toolContributions() {
     return buildActions({ workbenchFor: () => { throw new Error("Metadata only"); } }).map((action) => {
@@ -43,7 +46,7 @@ export function registerTools(vscode, context, current, log) {
                     invocationMessage: `GitLab: ${action.name.replaceAll("_", " ")}`,
                     ...(WRITES.has(action.name) ? {
                         confirmationMessages: {
-                            title: "Change GitLab work items",
+                            title: "Change GitLab project",
                             message: `Run ${action.name} on ${input.expectedProject} as the signed-in glab user?\n\nSelected: ${project?.host}/${project?.path}\n\n${JSON.stringify(input, null, 2)}`,
                         },
                     } : {}),

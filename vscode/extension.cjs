@@ -14,7 +14,7 @@ exports.activate = async (context) => {
     const log = (level, message) => output.appendLine(`[${level}] ${message}`);
     context.subscriptions.push(output);
     const current = () => {
-        if (!active) throw new Error("Open 'GitLab: Open Work Items Canvas' from the Command Palette first.");
+        if (!active) throw new Error("Open 'GitLab: Open GitLab Project Canvas' from the Command Palette first.");
         return active;
     };
     async function open() {
@@ -32,7 +32,7 @@ exports.activate = async (context) => {
         try {
             await workbench.init();
             server = await startServer({ publicDir: path.join(context.extensionPath, "canvas/public"), workbench, log });
-            panel = vscode.window.createWebviewPanel("gitlabWorkItems", "GitLab work items", vscode.ViewColumn.Beside, {
+            panel = vscode.window.createWebviewPanel("gitlabWorkItems", "GitLab project management", vscode.ViewColumn.Beside, {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "canvas/public"), vscode.Uri.joinPath(context.extensionUri, "vscode")],

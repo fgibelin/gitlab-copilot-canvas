@@ -12,6 +12,7 @@ const text = (description, maxLength = 255) => ({ type: "string", maxLength, des
 const names = (description, maxItems = 50) => ({ type: "array", items: { type: "string", minLength: 1, maxLength: 255 }, maxItems, description });
 const day = (what) => ({ type: "string", pattern: "^(\\d{4}-\\d{2}-\\d{2})?$", description: `${what} as YYYY-MM-DD. An empty string clears it.` });
 const IID = { type: "integer", minimum: 1, description: "The work item number within the project (the N in #N)." };
+const MERGE_REQUEST_IID = { type: "integer", minimum: 1, description: "The merge request IID within the project (the N in !N)." };
 const LINK_TYPE = { type: "string", enum: ["related", "blocks", "blocked_by"], description: '"blocks": `iid` blocks `target`. "blocked_by": `iid` is blocked by `target`. "related": a plain relation.' };
 
 const FILTERS = {
@@ -40,6 +41,16 @@ const clip = (value, max) => {
 };
 const brief = (item) => ({ iid: item.iid, title: item.title, state: item.state, type: item.type });
 const linksOf = (linked) => linked.map((link) => ({ link: link.type, ...brief(link.item) }));
+const briefMergeRequest = (mr) => ({
+    iid: mr.iid,
+    title: mr.title,
+    state: mr.state,
+    sourceBranch: mr.sourceBranch,
+    targetBranch: mr.targetBranch,
+    draft: mr.draft,
+    webUrl: mr.webUrl,
+    mergeStatus: mr.mergeStatus,
+});
 
 function detailForAgent(d) {
     const notes = d.discussions.flatMap((thread) => thread.notes).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -169,6 +180,62 @@ export function buildActions({ workbenchFor, log = () => {}, ErrorClass = GitLab
         action("unlink_work_items", "Removes the link between two work items.", object({ iid: IID, target: { ...IID, description: "The linked work item's number." } }, ["iid", "target"]), async ({ wb, input }) => {
             const updated = await wb.unlink(input.iid, input.target, "agent");
             return { iid: updated.iid, linked: linksOf(updated.linked) };
+        }),
+
+        action("list_merge_requests", "Lists project merge requests, newest updated first. Search matches titles and descriptions.", object({
+            state: { type: "string", enum: ["opened", "closed", "merged", "all"], description: "Which merge requests to show (default: opened)." },
+            search: text("Text to find in merge request titles and descriptions.", 200),
+            first: { type: "integer", minimum: 1, maximum: 100, description: "Page size (default 20)." },
+            page: { type: "integer", minimum: 1, description: "Page number (default 1)." },
+        }), async ({ wb, input }) => {
+            const { first = 20, page: pageNumber = 1, ...filters } = input;
+            const page = await wb.listMergeRequests(filters, { first, page: pageNumber });
+            return { returned: page.items.length, hasNextPage: page.hasNextPage, nextPage: page.nextPage, items: page.items.map(briefMergeRequest) };
+        }),
+
+        action("get_merge_request", "Reads a merge request and its recent discussion.", object({ iid: MERGE_REQUEST_IID }, ["iid"]), async ({ wb, input }) => {
+            const mr = await wb.getMergeRequest(input.iid);
+            return { ...briefMergeRequest(mr), description: clip(mr.description, MAX_DESCRIPTION_CHARS), createdAt: mr.createdAt, updatedAt: mr.updatedAt, mergedAt: mr.mergedAt, author: mr.author?.username ?? null, assignees: mr.assignees.map((user) => user.username), reviewers: mr.reviewers.map((user) => user.username), labels: mr.labels, comments: mr.discussions.slice(-MAX_COMMENTS).map((note) => ({ author: note.author?.username ?? null, at: note.createdAt, body: clip(note.body, MAX_COMMENT_CHARS) })) };
+        }),
+
+        action("create_merge_request", "Creates a merge request from an existing source branch into a target branch.", object({
+            title: WRITABLE.title,
+            sourceBranch: text("Existing source branch name.", 255),
+            targetBranch: text("Target branch name.", 255),
+            description: WRITABLE.description,
+            draft: { type: "boolean", description: "Create as a draft merge request." },
+            labels: names("Existing project labels."),
+        }, ["title", "sourceBranch", "targetBranch"]), async ({ wb, input }) => briefMergeRequest(await wb.createMergeRequest(input, "agent"))),
+
+        action("update_merge_request", "Updates a merge request title, description, target branch, labels, draft state, or open/closed state.", object({
+            iid: MERGE_REQUEST_IID,
+            title: WRITABLE.title,
+            description: WRITABLE.description,
+            targetBranch: text("Target branch name.", 255),
+            labels: names("The complete set of project labels."),
+            draft: { type: "boolean", description: "Whether the merge request is a draft." },
+            state: { type: "string", enum: ["opened", "closed"], description: "Reopen or close the merge request." },
+        }, ["iid"]), async ({ wb, input }) => {
+            const { iid, ...patch } = input;
+            if (!Object.keys(patch).length) throw new GitLabError("invalid", "Nothing to change: pass at least one field besides iid.");
+            return briefMergeRequest(await wb.updateMergeRequest(iid, patch, "agent"));
+        }),
+
+        action("comment_merge_request", "Posts a comment on a merge request under the signed-in GitLab user's identity.", object({ iid: MERGE_REQUEST_IID, body: text("Markdown comment text.", 1_000_000) }, ["iid", "body"]), async ({ wb, input }) => {
+            if (!input.body.trim()) throw new GitLabError("invalid", "The comment is empty.");
+            const note = await wb.commentMergeRequest(input.iid, input.body, "agent");
+            return { iid: input.iid, commentId: note?.id ?? null, createdAt: note?.createdAt ?? null };
+        }),
+
+        action("approve_merge_request", "Approves a merge request as the signed-in GitLab user.", object({ iid: MERGE_REQUEST_IID }, ["iid"]), async ({ wb, input }) => briefMergeRequest(await wb.approveMergeRequest(input.iid, "agent"))),
+
+        action("merge_merge_request", "Merges a merge request now, if GitLab reports it is mergeable. This changes the target branch.", object({
+            iid: MERGE_REQUEST_IID,
+            mergeWhenPipelineSucceeds: { type: "boolean", description: "Queue the merge until its pipeline succeeds instead of merging immediately." },
+            shouldRemoveSourceBranch: { type: "boolean", description: "Delete the source branch after merging." },
+        }, ["iid"]), async ({ wb, input }) => {
+            const { iid, ...options } = input;
+            return briefMergeRequest(await wb.mergeMergeRequest(iid, options, "agent"));
         }),
 
         action("get_view", "Returns what the user is looking at: project, list or board mode, grouping, filters and the work item open in the side panel.", undefined, async ({ wb }) => {

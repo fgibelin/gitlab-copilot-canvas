@@ -1,16 +1,18 @@
 # GitLab Copilot Canvas
 
-Manage GitLab work items in **GitHub Copilot App** or **Visual Studio Code**:
-a searchable list, a grouped board, and an editable detail drawer. Both hosts
-use the same UI and GitLab implementation. No Flask application, hosted service,
-or project-specific configuration is required.
+Manage GitLab work items and merge requests in **GitHub Copilot App** or
+**Visual Studio Code**. Work items have a searchable list, grouped board and
+editable detail drawer; merge requests have a searchable workspace for creating,
+editing, discussing, approving and merging. Both hosts use the same UI and
+GitLab implementation. No Flask application, hosted service or project-specific
+configuration is required.
 
 ## Install
 
 | Host | Distribution | Integration |
 | --- | --- | --- |
-| Copilot App | [`canvas/`](https://github.com/fgibelin/gitlab-copilot-canvas/tree/main/canvas) or release archive | Native extension canvas and 13 agent actions |
-| VS Code desktop | `.vsix` from [Releases](https://github.com/fgibelin/gitlab-copilot-canvas/releases) | Native webview and 13 Copilot Chat tools |
+| Copilot App | [`canvas/`](https://github.com/fgibelin/gitlab-copilot-canvas/tree/main/canvas) or release archive | Native extension canvas and 20 agent actions |
+| VS Code desktop | `.vsix` from [Releases](https://github.com/fgibelin/gitlab-copilot-canvas/releases) | Native webview and 20 Copilot Chat tools |
 
 ### Prerequisites
 
@@ -69,7 +71,7 @@ The installed directory must directly contain `extension.mjs`.
 
 Start a new session in a GitLab repository and ask:
 
-> Open the GitLab work items canvas.
+> Open the GitLab project management canvas.
 
 **A project-scoped copy shadows a user-scoped copy with the same name.** If you
 previously used the original embedded extension, move that project copy aside
@@ -85,7 +87,7 @@ Download `gitlab-copilot-canvas.vsix` from
 code --install-extension /path/to/gitlab-copilot-canvas.vsix
 ```
 
-Open a trusted GitLab workspace and run **GitLab: Open Work Items Canvas** from
+Open a trusted GitLab workspace and run **GitLab: Open GitLab Project Canvas** from
 the Command Palette. Multi-root workspaces prompt for the repository. You can
 also open the canvas without a workspace and enter a project manually.
 
@@ -126,16 +128,22 @@ explicitly when remote detection is ambiguous.
   descriptions, assignments, labels, milestones, dates and parent relationships.
 - Add child tasks and comments; link/unlink related or blocking work items;
   close and reopen work items.
+- Search and filter merge requests by state and text; inspect source/target
+  branches, descriptions and discussion, with paged results.
+- Create and edit merge requests, post comments, approve, close/reopen, and
+  merge (immediately or through the pipeline using assistant actions).
 - Live updates between this extension's panels and agent actions, theme-aware
   rendering, and responsive layouts.
 
-**Edits publish immediately under your signed-in GitLab identity.** Labels and
-milestones must already exist. Available widgets, permissions and subscription
-features determine which operations GitLab allows. Work-item deletion is
-deliberately not exposed.
+**Edits publish immediately under your signed-in GitLab identity.** Merging
+changes the target branch; the canvas asks for confirmation before merging.
+Labels and milestones must already exist. Available permissions and subscription
+features determine which operations GitLab allows. Deletion is deliberately not
+exposed.
 
-Shortcuts: `/` search, `N` new item, `R` refresh, `Escape` dismiss picker/drawer,
-and `Cmd+Enter` / `Ctrl+Enter` to submit the create dialog.
+Shortcuts: `/` search, `N` new item or merge request in the active workspace,
+`R` refresh, `Escape` dismiss picker/details, and `Cmd+Enter` / `Ctrl+Enter` to
+submit the create dialog.
 
 ## Agent and Copilot Chat tools
 
@@ -147,8 +155,13 @@ exposes the same actions as tools named `gitlab_canvas_<action>`:
 | `get_project_info` | `create_work_item` | `get_view` |
 | `list_work_items` | `update_work_item` | `set_view` |
 | `get_work_item` | `add_comment` | `select_work_item` |
-| | `link_work_items` | `refresh` |
-| | `unlink_work_items` | `set_project` |
+| `list_merge_requests` | `link_work_items` | `refresh` |
+| `get_merge_request` | `unlink_work_items` | `set_project` |
+| | `create_merge_request` | |
+| | `update_merge_request` | |
+| | `comment_merge_request` | |
+| | `approve_merge_request` | |
+| | `merge_merge_request` | |
 
 Read project information before assigning labels, people or relationships.
 VS Code write tools require `expectedProject` in `host/group/project` form,

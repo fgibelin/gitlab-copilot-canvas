@@ -159,6 +159,16 @@ export async function startServer({ publicDir, workbench, log = () => {} }) {
         ["POST", /^\/api\/items\/(\d+)\/comments$/, async ({ params, body }) => workbench.comment(params[0], body.body)],
         ["POST", /^\/api\/items\/(\d+)\/links$/, async ({ params, body }) => workbench.link(params[0], body.target, body.type)],
         ["DELETE", /^\/api\/items\/(\d+)\/links\/(\d+)$/, async ({ params }) => workbench.unlink(params[0], params[1])],
+        ["GET", /^\/api\/merge-requests$/, async ({ query }) => workbench.listMergeRequests(
+            { state: query.get("state"), search: query.get("search") },
+            { first: Number(query.get("first")) || 50, page: Number(query.get("page")) || 1 },
+        )],
+        ["GET", /^\/api\/merge-requests\/(\d+)$/, async ({ params }) => workbench.getMergeRequest(params[0])],
+        ["POST", /^\/api\/merge-requests$/, async ({ body }) => workbench.createMergeRequest(body)],
+        ["PUT", /^\/api\/merge-requests\/(\d+)$/, async ({ params, body }) => workbench.updateMergeRequest(params[0], body)],
+        ["POST", /^\/api\/merge-requests\/(\d+)\/comments$/, async ({ params, body }) => workbench.commentMergeRequest(params[0], body.body)],
+        ["POST", /^\/api\/merge-requests\/(\d+)\/approve$/, async ({ params }) => workbench.approveMergeRequest(params[0])],
+        ["POST", /^\/api\/merge-requests\/(\d+)\/merge$/, async ({ params, body }) => workbench.mergeMergeRequest(params[0], body)],
         ["PUT", /^\/api\/view$/, async ({ body }) => workbench.setView(body)],
     ];
 

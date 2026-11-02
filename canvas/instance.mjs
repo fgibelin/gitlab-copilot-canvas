@@ -155,12 +155,19 @@ export function createWorkbench({ instanceId, cwd, input = {}, detect = detectPr
         meta: async (options) => requireService().meta(options),
         list: async (filter, page) => requireService().list(filter, page),
         get: async (iid) => requireService().get(iid),
+        listMergeRequests: async (filter, page) => requireService().listMergeRequests(filter, page),
+        getMergeRequest: async (iid) => requireService().getMergeRequest(iid),
         // `by` ("ui" or "agent") lets other open panels tell who made a change.
         create: (data, by = "ui") => mutate(by, (svc) => svc.create(data)),
         update: (iid, patch, by = "ui") => mutate(by, (svc) => svc.update(iid, patch)),
         comment: (iid, body, by = "ui") => mutate(by, (svc) => svc.comment(iid, body)),
         link: (iid, target, type, by = "ui") => mutate(by, (svc) => svc.link(iid, target, type)),
         unlink: (iid, target, by = "ui") => mutate(by, (svc) => svc.unlink(iid, target)),
+        createMergeRequest: (data, by = "ui") => mutate(by, (svc) => svc.createMergeRequest(data)),
+        updateMergeRequest: (iid, patch, by = "ui") => mutate(by, (svc) => svc.updateMergeRequest(iid, patch)),
+        commentMergeRequest: (iid, body, by = "ui") => mutate(by, (svc) => svc.commentMergeRequest(iid, body)),
+        approveMergeRequest: (iid, by = "ui") => mutate(by, (svc) => svc.approveMergeRequest(iid)),
+        mergeMergeRequest: (iid, options, by = "ui") => mutate(by, (svc) => svc.mergeMergeRequest(iid, options)),
 
         close() {
             closed = true;
