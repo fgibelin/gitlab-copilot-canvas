@@ -47,7 +47,6 @@ function within(promise, ms, message) {
     let timer;
     const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => reject(new GitLabError("session_failed", message)), ms);
-        timer.unref?.();
     });
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
