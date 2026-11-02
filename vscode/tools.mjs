@@ -1,5 +1,5 @@
-import { buildActions } from "../canvas/actions.mjs";
-import { GitLabError } from "../canvas/gitlab.mjs";
+import { buildActions } from "../gitlab-copilot-canvas/actions.mjs";
+import { GitLabError } from "../gitlab-copilot-canvas/gitlab.mjs";
 
 export const WRITES = new Set([
     "create_work_item", "update_work_item", "add_comment", "link_work_items", "unlink_work_items",

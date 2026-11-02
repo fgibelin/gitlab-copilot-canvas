@@ -5,12 +5,12 @@ const escape = (text) => String(text).replaceAll("&", "&amp;").replaceAll('"', "
 
 export async function renderWebview(webview, root, uriFile) {
     const asset = (relative) => escape(webview.asWebviewUri(uriFile(path.join(root, relative))).toString());
-    const html = await readFile(path.join(root, "canvas/public/index.html"), "utf8");
+    const html = await readFile(path.join(root, "gitlab-copilot-canvas/public/index.html"), "utf8");
     const policy = `default-src 'none'; script-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src https: data:; font-src ${webview.cspSource}; connect-src 'none'; base-uri 'none'; form-action 'none';`;
     return html.replace("<head>", `<head>\n<meta http-equiv="Content-Security-Policy" content="${escape(policy)}">`)
-        .replace('href="/app.css"', `href="${asset("canvas/public/app.css")}"`)
+        .replace('href="/app.css"', `href="${asset("gitlab-copilot-canvas/public/app.css")}"`)
         .replace("</head>", `<link rel="stylesheet" href="${asset("vscode/theme.css")}">\n</head>`)
-        .replace('src="/js/app.js"', `src="${asset("canvas/public/js/app.js")}"`);
+        .replace('src="/js/app.js"', `src="${asset("gitlab-copilot-canvas/public/js/app.js")}"`);
 }
 
 export async function relayRequest(message, server) {

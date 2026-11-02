@@ -4,5 +4,5 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
-execFileSync("tar", ["-czf", "dist/gitlab-work-items.tar.gz", "-C", ".", "canvas"], { cwd: root, stdio: "inherit" });
-console.log("Created dist/gitlab-work-items.tar.gz (extract and install canvas/ as gitlab-copilot-canvas/).");
+execFileSync("tar", ["-czf", "dist/gitlab-work-items.tar.gz", "-C", ".", "gitlab-copilot-canvas"], { cwd: root, stdio: "inherit" });
+console.log("Created dist/gitlab-work-items.tar.gz (extract and install its gitlab-copilot-canvas/ directory).");

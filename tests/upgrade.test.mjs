@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import vm from "node:vm";
-import { loadPublicAssets, startServer } from "../canvas/server.mjs";
+import { loadPublicAssets, startServer } from "../gitlab-copilot-canvas/server.mjs";
 
 test("a running server keeps its UI assets when the installation is upgraded", async (t) => {
     const publicDir = await mkdtemp(path.join(tmpdir(), "gitlab-canvas-upgrade-"));
@@ -59,7 +59,7 @@ test("missing required UI assets fail server startup", async (t) => {
     await assert.rejects(async () => { server = await startServer({ publicDir, workbench }); }, { code: "ENOENT" });
 });
 
-const apiSource = (await readFile(new URL("../canvas/public/js/api.js", import.meta.url), "utf8"))
+const apiSource = (await readFile(new URL("../gitlab-copilot-canvas/public/js/api.js", import.meta.url), "utf8"))
     .replace('import { bridge } from "./vscode-bridge.js";', "const bridge = globalThis.testBridge;")
     .replaceAll("export ", "");
 

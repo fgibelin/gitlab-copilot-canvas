@@ -22,5 +22,5 @@ try {
     if (error.code !== "ENOENT") throw error;
 }
 await mkdir(base, { recursive: true });
-await cp(fileURLToPath(new URL("../canvas/", import.meta.url)), destination, { recursive: true, force: false, errorOnExist: true });
+await cp(fileURLToPath(new URL("../gitlab-copilot-canvas/", import.meta.url)), destination, { recursive: true, force: false, errorOnExist: true });
 console.log(`Installed the GitLab canvas at ${destination}. Start a new Copilot session to load it.`);

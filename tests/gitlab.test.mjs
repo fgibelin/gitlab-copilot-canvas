@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createService, DOCS } from "../canvas/gitlab.mjs";
+import { createService, DOCS } from "../gitlab-copilot-canvas/gitlab.mjs";
 
 function fixture() {
     const mutations = [];

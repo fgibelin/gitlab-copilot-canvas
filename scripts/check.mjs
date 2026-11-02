@@ -10,5 +10,5 @@ async function check(dir) {
         else if (/\.(?:mjs|cjs|js)$/.test(file.name)) execFileSync(process.execPath, ["--check", fileURLToPath(url)], { stdio: "inherit" });
     }
 }
-for (const name of ["canvas", "vscode", "scripts", "tests"]) await check(new URL(`${name}/`, root));
+for (const name of ["gitlab-copilot-canvas", "vscode", "scripts", "tests"]) await check(new URL(`${name}/`, root));
 await mkdir(new URL("dist/", root), { recursive: true });
