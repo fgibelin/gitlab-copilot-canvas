@@ -2,6 +2,7 @@
 import http from "node:http";
 import net from "node:net";
 import { createWorkbench } from "../../canvas/instance.mjs";
+import { GitLabError } from "../../canvas/gitlab.mjs";
 import { startServer } from "../../canvas/server.mjs";
 import { fileURLToPath } from "node:url";
 import { getStore, makeMockService, mockDetect, resetStores } from "./mock-service.mjs";
@@ -20,8 +21,8 @@ const check = (name, cond, detail = "") => {
 const section = (name) => console.log(`# ${name}`);
 
 const logs = [];
-async function boot({ cwd = "/tmp/work", input = {}, id = "t" } = {}) {
-    const workbench = createWorkbench({ instanceId: id, cwd, input, detect: mockDetect, makeService: makeMockService });
+async function boot({ cwd = "/tmp/work", input = {}, id = "t", launchSession } = {}) {
+    const workbench = createWorkbench({ instanceId: id, cwd, input, detect: mockDetect, makeService: makeMockService, launchSession });
     const server = await startServer({ publicDir: PUBLIC_DIR, workbench, log: (l, m) => logs.push(`${l}: ${m}`) });
     return { workbench, server, port: server.port, token: server.token };
 }
@@ -464,6 +465,54 @@ section("no project / switching project");
     const mu = (await api(u)("GET", "/api/meta")).json.data;
     check("rules unavailable -> null (unrestricted), not an empty list", mu.scopedLabels === null && mu.types.every((t) => t.childTypes === null && t.parentTypes === null), JSON.stringify(mu.types[0]));
     await u.server.close();
+}
+
+// ---------------------------------------------------------------------------------------------
+section("open a Copilot session from a work item");
+{
+    resetStores();
+    const requests = [];
+    const launched = { sessionId: "6b1e0f2c-3d4a-4b5c-8d6e-7f8091a2b3c4", navigated: true };
+    const s = await boot({ id: "session", launchSession: async (request) => (requests.push(request), launched) });
+    const call = api(s);
+    let r = await call("GET", "/api/state");
+    check("state tells the panel that this host can open sessions", r.json.data.capabilities?.openSession === true, r.text.slice(0, 200));
+    r = await call("POST", "/api/items/1/session", {});
+    check("POST /api/items/1/session -> 200 with the new session", r.status === 200 && r.json.data.sessionId === launched.sessionId && r.json.data.navigated === true, `${r.status} ${r.text}`);
+    const [request] = requests;
+    check("the launcher runs once with a short name", requests.length === 1 && request.name.startsWith("Issue #1: Add clicker") && request.name.length <= 40, JSON.stringify(request)?.slice(0, 200));
+    check("its first message names the project and carries the item", /work item #1 in acme\/flask-demo/.test(request.prompt) && request.prompt.includes("Add clicker achievements and milestones") && request.prompt.includes("Added the schema in `achievements.py`."), request.prompt?.slice(0, 300));
+
+    r = await call("POST", "/api/items/9999/session", {});
+    check("an unknown item -> 404 and nothing is launched", r.status === 404 && r.json.error.code === "not_found" && requests.length === 1, `${r.status} ${r.text}`);
+    r = await call("POST", "/api/items/1/session");
+    check("a POST without a JSON content type -> 415 and nothing is launched", r.status === 415 && requests.length === 1, `${r.status} ${r.text}`);
+    r = await raw({ port: s.port, method: "POST", path: "/api/items/1/session", headers: { "content-type": "application/json" }, body: "{}" });
+    check("a POST without the token -> 403 and nothing is launched", r.status === 403 && requests.length === 1, `${r.status} ${r.text}`);
+    r = await call("POST", "/api/items/1/session", {}, { origin: "https://evil.example" });
+    check("a POST from a foreign origin -> 403 and nothing is launched", r.status === 403 && requests.length === 1, `${r.status} ${r.text}`);
+    r = await call("GET", "/api/items/1/session");
+    check("GET is not allowed on the route -> 405", r.status === 405, `${r.status} ${r.text}`);
+    r = await call("POST", "/api/items/one/session", {});
+    check("a non-numeric item number is an unknown endpoint -> 404", r.status === 404 && requests.length === 1, `${r.status} ${r.text}`);
+    await s.server.close();
+
+    const failing = await boot({ id: "session-failing", launchSession: async () => { throw new GitLabError("session_failed", "Could not open a Copilot session: denied"); } });
+    r = await api(failing)("POST", "/api/items/1/session", {});
+    check("a launcher failure -> 502 session_failed with its message", r.status === 502 && r.json.error.code === "session_failed" && /denied/.test(r.json.error.message), `${r.status} ${r.text}`);
+    await failing.server.close();
+
+    const bare = await boot({ id: "session-bare" });
+    r = await api(bare)("GET", "/api/state");
+    check("without a launcher the state says sessions cannot be opened", r.json.data.capabilities?.openSession === false, r.text.slice(0, 200));
+    r = await api(bare)("POST", "/api/items/1/session", {});
+    check("without a launcher -> 501 unsupported", r.status === 501 && r.json.error.code === "unsupported" && /GitHub Copilot app/.test(r.json.error.message), `${r.status} ${r.text}`);
+    await bare.server.close();
+
+    const none = await boot({ id: "session-none", cwd: "/tmp/no-remote", launchSession: async () => { throw new Error("must not run"); } });
+    r = await api(none)("POST", "/api/items/1/session", {});
+    check("without a project -> 409 no_project and nothing is launched", r.status === 409 && r.json.error.code === "no_project", `${r.status} ${r.text}`);
+    await none.server.close();
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

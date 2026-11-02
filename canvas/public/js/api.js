@@ -66,6 +66,7 @@ export const api = {
     create: (data) => request("POST", "/api/items", { body: data }),
     update: (iid, patch) => request("PATCH", `/api/items/${iid}`, { body: patch }),
     comment: (iid, body) => request("POST", `/api/items/${iid}/comments`, { body: { body } }),
+    openSession: (iid) => request("POST", `/api/items/${iid}/session`, { body: {} }),
     link: (iid, target, type) => request("POST", `/api/items/${iid}/links`, { body: { target, type } }),
     unlink: (iid, target) => request("DELETE", `/api/items/${iid}/links/${target}`),
     createMergeRequest: (data) => request("POST", "/api/merge-requests", { body: data }),

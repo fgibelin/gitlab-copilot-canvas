@@ -1193,6 +1193,9 @@ a {
     padding: 8px 10px 8px 14px;
     border-bottom: 1px solid var(--wi-border);
 }
+.d-head .btn {
+    flex: none;
+}
 .d-kind {
     display: inline-flex;
     align-items: center;
@@ -2182,6 +2185,19 @@ h6.md-h {
     }
     .dialog {
         max-height: calc(100vh - 24px);
+    }
+}
+@media (max-width: 420px) {
+    .d-head .btn > .icon + span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+    .d-head .btn {
+        padding: 0 7px;
     }
 }
 @media (prefers-reduced-motion: reduce) {

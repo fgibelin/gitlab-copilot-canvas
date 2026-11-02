@@ -55,6 +55,7 @@ const ICONS = {
     calendar: [["rect", { x: 2.5, y: 3.5, width: 11, height: 10, rx: 1.6 }], ["path", { d: "M2.5 6.6h11M5.6 2v3M10.4 2v3" }]],
     link: [["path", { d: "M6.6 9.4l2.8-2.8M5.2 8L4 9.2a2.4 2.4 0 0 0 3.4 3.4L8.6 11.4M10.8 8L12 6.8a2.4 2.4 0 0 0-3.4-3.4L7.4 4.6" }]],
     external: [["path", { d: "M9 3h4v4M13 3L7.6 8.4M11 9.6V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.4" }]],
+    session: [["rect", { x: 2, y: 2.8, width: 12, height: 10.4, rx: 1.8 }], ["path", { d: "M5.2 6.2L7.2 8l-2 1.8M8.8 10h2.6" }]],
     pencil: [["path", { d: "M3 13l.7-2.9 7-7a1.4 1.4 0 0 1 2 0l.2.2a1.4 1.4 0 0 1 0 2l-7 7zM9.6 4.4l2 2" }]],
     list: [["path", { d: "M5.6 4h8M5.6 8h8M5.6 12h8" }], dot(2.6, 4), dot(2.6, 8), dot(2.6, 12)],
     board: [["rect", { x: 2.5, y: 3, width: 3, height: 10, rx: 0.8 }], ["rect", { x: 6.5, y: 3, width: 3, height: 6, rx: 0.8 }], ["rect", { x: 10.5, y: 3, width: 3, height: 8, rx: 0.8 }]],

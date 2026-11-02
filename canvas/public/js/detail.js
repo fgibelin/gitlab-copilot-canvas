@@ -2,7 +2,7 @@
 // It is built once per selected item and every section repaints only when its own data changed, so an open editor,
 // an open picker or a half-written comment is never torn down by a background refresh.
 import { api } from "./api.js";
-import { avatar, dayLabel, dueStatus, fullTime, h, icon, labelChip, relTime, setChildren, stateIcon, typeIcon } from "./dom.js";
+import { avatar, dayLabel, dueStatus, fullTime, h, icon, labelChip, relTime, setChildren, stateIcon, toast, typeIcon } from "./dom.js";
 import { markdownEditor } from "./editor.js";
 import { renderMarkdown } from "./md.js";
 import { errorBox } from "./parts.js";
@@ -678,20 +678,30 @@ export function mountDetail(root, { onClose }) {
         select(iid);
     }
 
+    async function openSession(iid, button) {
+        if (button.getAttribute("aria-busy") === "true") return;
+        button.setAttribute("aria-busy", "true");
+        const result = await attempt(() => api.openSession(iid));
+        button.removeAttribute("aria-busy");
+        if (result) toast(result.navigated ? `Opened a Copilot session for #${iid} in a new worktree.` : `Started a Copilot session for #${iid} in a new worktree. Find it in your session list.`);
+    }
+
     function buildShell(iid) {
         const backBtn = h("button", { class: "icon-btn", type: "button", title: "Back", "aria-label": "Back to the previous work item", hidden: true, onclick: back }, icon("back", { size: 15 }));
         const kindIcon = h("span", { class: "d-kind-icon" });
         const kindName = h("span", { class: "d-kind-name" }, "Work item");
+        const sessionBtn = h("button", { class: "btn small", type: "button", title: "Start a Copilot session in a new worktree with this work item as context", hidden: true, dataset: { focusKey: "open-session" }, onclick: (event) => openSession(iid, event.currentTarget) }, icon("session", { size: 13 }), h("span", {}, "Open session"));
         const link = h("a", { class: "icon-btn", target: "_blank", rel: "noopener noreferrer", title: "Open in GitLab", "aria-label": "Open in GitLab", hidden: true }, icon("external", { size: 15 }));
         const close = h("button", { class: "icon-btn", type: "button", title: "Close panel (Esc)", "aria-label": "Close details", onclick: () => onClose() }, icon("x", { size: 15 }));
         const body = h("div", { class: "d-body" });
-        setChildren(root, h("header", { class: "d-head" }, backBtn, h("span", { class: "d-kind" }, kindIcon, kindName, h("span", { class: "d-kind-id" }, `#${iid}`)), h("span", { class: "tb-spacer" }), link, close), body);
-        return { iid, backBtn, kindIcon, kindName, link, body, mode: "", content: null, errorShown: null };
+        setChildren(root, h("header", { class: "d-head" }, backBtn, h("span", { class: "d-kind" }, kindIcon, kindName, h("span", { class: "d-kind-id" }, `#${iid}`)), h("span", { class: "tb-spacer" }), sessionBtn, link, close), body);
+        return { iid, backBtn, kindIcon, kindName, sessionBtn, link, body, mode: "", content: null, errorShown: null };
     }
 
     function paintHead(detail) {
         setChildren(shell.kindIcon, typeIcon(detail.type?.name, { size: 15 }));
         shell.kindName.textContent = detail.type?.name ?? "Work item";
+        shell.sessionBtn.hidden = !state.canOpenSession;
         const url = detail.webUrl;
         if (url && /^https?:\/\//i.test(url)) {
             shell.link.setAttribute("href", url);

@@ -55,6 +55,9 @@ test("VS Code bridge uses authenticated HTTP routes and rejects arbitrary destin
         for (const destination of ["https://example.com/api/items", "//example.com/api/items", "/js/app.js", "/api/../../etc/passwd"]) {
             await assert.rejects(request("GET", destination), /Invalid canvas request/);
         }
+        // Opening a Copilot session is a GitHub Copilot app feature: the VS Code bridge must never relay it.
+        await assert.rejects(request("POST", `/api/items/${iid}/session`, {}), /Invalid canvas request/);
+        assert.equal(state.payload.data.capabilities.openSession, false);
     } finally { workbench.close(); await server.close(); }
 });
 

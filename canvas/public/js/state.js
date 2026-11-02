@@ -30,6 +30,7 @@ export const state = {
     instanceId: null,
     project: null,
     problem: null,
+    canOpenSession: false, // only the Copilot app can start a session; the VS Code adapter cannot
     view: { mode: "list", groupBy: "state", filters: { state: "open", type: "", label: [], assignee: "", milestone: "", search: "", sort: "updated_desc" }, selected: null },
     meta: null,
     items: [],
@@ -124,6 +125,7 @@ export function boot() {
             state.instanceId = described.instanceId;
             state.project = described.project;
             state.problem = described.problem;
+            state.canOpenSession = Boolean(described.capabilities?.openSession);
             state.view = asView(described.view);
             state.items = [];
             state.total = 0;

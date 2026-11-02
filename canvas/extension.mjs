@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { buildActions } from "./actions.mjs";
 import { createWorkbench } from "./instance.mjs";
+import { launchWorktreeSession } from "./issue-session.mjs";
 import { loadPublicAssets, startServer } from "./server.mjs";
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
@@ -28,7 +29,9 @@ const workingDirectory = (ctx) => ctx.session?.workingDirectory ?? process.cwd()
 function entryFor(ctx, input = {}) {
     let entry = entries.get(ctx.instanceId);
     if (!entry) {
-        entry = { workbench: createWorkbench({ instanceId: ctx.instanceId, cwd: workingDirectory(ctx), input }), server: null, starting: null };
+        // `session` is read when the button is clicked, long after joinSession has returned.
+        const launchSession = (request) => launchWorktreeSession(session, request, { log });
+        entry = { workbench: createWorkbench({ instanceId: ctx.instanceId, cwd: workingDirectory(ctx), input, launchSession }), server: null, starting: null };
         entries.set(ctx.instanceId, entry);
     }
     return entry;
