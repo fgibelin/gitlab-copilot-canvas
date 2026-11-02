@@ -32,7 +32,7 @@ exports.activate = async (context) => {
         try {
             await workbench.init();
             server = await startServer({ publicDir: path.join(context.extensionPath, "canvas/public"), workbench, log });
-            panel = vscode.window.createWebviewPanel("gitlabWorkItems", "GitLab project management", vscode.ViewColumn.Beside, {
+            panel = vscode.window.createWebviewPanel("gitlabWorkItems", "GitLab", vscode.ViewColumn.Beside, {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "canvas/public"), vscode.Uri.joinPath(context.extensionUri, "vscode")],

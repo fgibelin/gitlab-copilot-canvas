@@ -15,6 +15,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 test("webview rewrites all assets, restricts CSP and contains no access token", async () => {
     const webview = { cspSource: "https://test.vscode-cdn.net", asWebviewUri: (uri) => `https://test.vscode-cdn.net${uri}` };
     const html = await renderWebview(webview, root, (file) => file);
+    assert.match(html, /<title>GitLab<\/title>/);
     assert.ok(!html.includes('src="/js/app.js"'));
     assert.ok(!html.includes('href="/app.css"'));
     assert.match(html, /Content-Security-Policy/);

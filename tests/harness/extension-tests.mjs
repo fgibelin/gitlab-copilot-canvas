@@ -26,7 +26,7 @@ const canvas = captured.config?.canvases?.[0];
 section("declaration");
 check("joinSession got one canvas", captured.config?.canvases?.length === 1);
 check("canvas id", canvas?.id === "gitlab-work-items");
-check("displayName + description", canvas.displayName === "GitLab project management" && canvas.description.length > 30 && canvas.description.length < 300, canvas.description?.length);
+check("displayName + description", canvas.displayName === "GitLab" && canvas.description.length > 30 && canvas.description.length < 300, canvas.description?.length);
 check("ready message logged through session.log (not stdout)", captured.logs.some((l) => /ready/.test(l.message) && l.level === "info" && l.ephemeral === true), JSON.stringify(captured.logs));
 const names = canvas.actions.map((a) => a.name);
 check("unique action names", new Set(names).size === names.length, names.join(","));
@@ -153,7 +153,7 @@ const apiPost = async (url, path, body = {}) => {
 section("open / idempotency / close");
 getStore("acme/flask-demo").latency = 0;
 const [o1, o2, o3] = await Promise.all([canvas.open(ctx("wi-1", { input: {} })), canvas.open(ctx("wi-1", { input: { project: "ignored/after-first-open" } })), canvas.open(ctx("wi-1"))]);
-check("open returns url/title/status", /^http:\/\/127\.0\.0\.1:\d+\/\?k=[0-9a-f]{32}$/.test(o1.url) && o1.title === "GitLab project management" && o1.status === "acme/flask-demo", JSON.stringify(o1));
+check("open returns url/title/status", /^http:\/\/127\.0\.0\.1:\d+\/\?k=[0-9a-f]{32}$/.test(o1.url) && o1.title === "GitLab" && o1.status === "acme/flask-demo", JSON.stringify(o1));
 check("concurrent opens share ONE server (same url)", o1.url === o2.url && o2.url === o3.url, `${o1.url} ${o2.url} ${o3.url}`);
 check("later open input is ignored for an existing instance (idempotent)", o2.status === "acme/flask-demo");
 const again = await canvas.open(ctx("wi-1", { input: {} }));

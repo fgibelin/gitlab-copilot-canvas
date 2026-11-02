@@ -73,7 +73,7 @@ The installed directory must directly contain `extension.mjs`.
 
 Start a new session in a GitLab repository and ask:
 
-> Open the GitLab project management canvas.
+> Open the GitLab canvas.
 
 **A project-scoped copy shadows a user-scoped copy with the same name.** If you
 previously used the original embedded extension, move that project copy aside
