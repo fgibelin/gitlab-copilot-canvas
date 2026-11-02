@@ -63,7 +63,9 @@ The user installation goes to `$COPILOT_HOME/extensions/gitlab-work-items`
 (`~/.copilot/extensions/gitlab-work-items` by default). A project installation
 goes to `<git-root>/.github/extensions/gitlab-work-items`. The installer refuses
 to overwrite an existing extension. To update, explicitly move the old folder
-aside, install the new one and reload/start a new session.
+aside, install the new one and start a new Copilot session (or restart Copilot
+App). Refreshing or reopening a panel in an existing session does not restart
+its extension server.
 
 You can also extract `gitlab-work-items.tar.gz` from Releases and copy its
 `canvas` directory to either destination above, naming it `gitlab-work-items`.
@@ -76,6 +78,12 @@ Start a new session in a GitLab repository and ask:
 **A project-scoped copy shadows a user-scoped copy with the same name.** If you
 previously used the original embedded extension, move that project copy aside
 explicitly when you want the standalone user installation to take over.
+
+If merge requests show **"Unknown endpoint."** after an upgrade, an older
+extension server is still running with newer UI files. Start a new Copilot
+session and reopen the GitLab canvas; Retry and page refresh cannot add the
+missing server routes. The canvas now snapshots its UI when the provider starts
+so later file replacements cannot mix a new UI with an older backend.
 
 ### Visual Studio Code
 
@@ -90,6 +98,8 @@ code --install-extension /path/to/gitlab-copilot-canvas.vsix
 Open a trusted GitLab workspace and run **GitLab: Open GitLab Project Canvas** from
 the Command Palette. Multi-root workspaces prompt for the repository. You can
 also open the canvas without a workspace and enter a project manually.
+After upgrading an existing installation, run **Developer: Reload Window**
+before reopening the canvas.
 
 The visual canvas does not require a Copilot subscription. The optional chat
 tools require a chat agent that supports VS Code language-model tools, such as
