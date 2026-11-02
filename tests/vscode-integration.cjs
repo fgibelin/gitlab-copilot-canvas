@@ -10,7 +10,7 @@ exports.run = async () => {
     const state = await vscode.commands.executeCommand("gitlabCanvas.open");
     assert.equal(state?.configured, false, "A fresh window must show project selection");
     assert.equal(state.instanceId, "vscode-work-items");
-    assert.equal(vscode.window.tabGroups.all.flatMap(group => group.tabs).filter(tab => tab.label === "GitLab project management").length, 1);
+    assert.equal(vscode.window.tabGroups.all.flatMap(group => group.tabs).filter(tab => tab.label === "GitLab").length, 1);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     console.log("PASS: VS Code activation, all 20 tools, real webview renderer handshake, no-project view and disposal.");
 };

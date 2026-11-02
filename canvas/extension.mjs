@@ -62,7 +62,7 @@ async function disposeEntry(instanceId) {
 
 const canvas = createCanvas({
     id: "gitlab-work-items",
-    displayName: "GitLab project management",
+    displayName: "GitLab",
     description: "Browse and manage this GitLab project's work items and merge requests, including merge request discussion, approval and merge.",
     inputSchema: {
         type: "object",
@@ -81,7 +81,7 @@ const canvas = createCanvas({
         }
         await entry.workbench.init();
         const { project } = entry.workbench.describe();
-        return { url: server.url, title: "GitLab project management", status: project?.path ?? "No project selected" };
+        return { url: server.url, title: "GitLab", status: project?.path ?? "No project selected" };
     },
 
     onClose: async (ctx) => {
@@ -90,4 +90,4 @@ const canvas = createCanvas({
 });
 
 session = await joinSession({ canvases: [canvas] });
-log("info", "GitLab project management canvas ready.");
+log("info", "GitLab canvas ready.");
