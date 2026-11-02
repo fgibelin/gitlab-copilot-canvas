@@ -131,6 +131,9 @@ function classifyFailure(code, stderr, stdout) {
     if (/\b401\b|unauthori[sz]ed|not logged in|no token|not authenticated|glab auth login/i.test(message)) {
         return new GitLabError("auth", `glab is not authenticated for this GitLab host. Run \`glab auth login\`. (${message})`);
     }
+    if (/\b404\b|not found/i.test(message)) return new GitLabError("not_found", message);
+    if (/\b403\b|forbidden|insufficient_scope/i.test(message)) return new GitLabError("forbidden", message);
+    if (/\b400\b|\b422\b|unprocessable|validation failed/i.test(message)) return new GitLabError("invalid", message);
     if (/could not resolve|no such host|dial tcp|i\/o timeout|connection (refused|reset)|network is unreachable|ENOTFOUND|ECONNREFUSED/i.test(message)) {
         return new GitLabError("network", `Could not reach GitLab: ${message}`);
     }
@@ -341,7 +344,7 @@ function absoluteUrl(host, value) {
 }
 
 function normalizeUser(u, host) {
-    return u && { id: u.id ?? null, username: u.username, name: u.name || u.username, avatarUrl: absoluteUrl(host, u.avatarUrl), webUrl: absoluteUrl(host, u.webUrl) };
+    return u && { id: u.id ?? null, username: u.username, name: u.name || u.username, avatarUrl: absoluteUrl(host, u.avatarUrl ?? u.avatar_url), webUrl: absoluteUrl(host, u.webUrl ?? u.web_url) };
 }
 
 export function normalizeLabel(l) {
@@ -604,6 +607,152 @@ export function createService({ host, projectPath, run = runGlab, now = () => Da
 
     const call = (query, variables) => graphql(host, query, variables, run);
     const notFound = () => new GitLabError("not_found", `Project "${projectPath}" was not found on ${host}, or your glab account cannot access it.`);
+    const projectApiPath = `projects/${encodeURIComponent(projectPath)}`;
+    const mergeRequestIid = (value) => {
+        const iid = typeof value === "number" ? value : Number(String(value ?? "").replace(/^!/, ""));
+        if (!Number.isSafeInteger(iid) || iid < 1) throw invalid(`"${value}" is not a valid merge request number.`);
+        return iid;
+    };
+    const branchName = (value, field) => {
+        const branch = String(value ?? "").trim();
+        if (!branch) throw invalid(`${field} is required.`);
+        if (branch.length > 255) throw invalid(`${field} is too long (max 255 characters).`);
+        return branch;
+    };
+    const labelNames = (value) => {
+        const labels = asList(value);
+        if (labels.length > 50 || labels.some((label) => label.length > 255)) throw invalid("At most 50 labels of 255 characters each are supported.");
+        return labels;
+    };
+
+    async function rest(path, { method = "GET", query, body } = {}) {
+        const queryString = query ? `?${new URLSearchParams(query)}` : "";
+        const args = ["api", `${projectApiPath}${path}${queryString}`, "--hostname", host];
+        if (method !== "GET") args.push("--method", method);
+        if (body !== undefined) args.push("--input", "-");
+        const result = await run(args, { stdin: body === undefined ? "" : JSON.stringify(body) });
+        if (result.code !== 0) throw classifyFailure(result.code, result.stderr, result.stdout);
+        try {
+            return result.stdout.trim() ? JSON.parse(result.stdout) : null;
+        } catch {
+            throw new GitLabError("bad_response", "GitLab returned an invalid response for the merge request operation.");
+        }
+    }
+
+    function normalizeMergeRequest(mr) {
+        if (!mr || typeof mr !== "object" || !Number.isInteger(Number(mr.iid))) {
+            throw new GitLabError("bad_response", "GitLab returned an incomplete merge request.");
+        }
+        return {
+            iid: Number(mr.iid),
+            title: String(mr.title ?? ""),
+            description: String(mr.description ?? ""),
+            state: String(mr.state ?? "opened").toLowerCase(),
+            webUrl: absoluteUrl(host, mr.web_url),
+            createdAt: mr.created_at ?? null,
+            updatedAt: mr.updated_at ?? null,
+            mergedAt: mr.merged_at ?? null,
+            closedAt: mr.closed_at ?? null,
+            sourceBranch: String(mr.source_branch ?? ""),
+            targetBranch: String(mr.target_branch ?? ""),
+            draft: Boolean(mr.draft ?? mr.work_in_progress),
+            mergeStatus: String(mr.detailed_merge_status ?? mr.merge_status ?? ""),
+            author: mr.author ? normalizeUser(mr.author, host) : null,
+            assignees: (mr.assignees ?? (mr.assignee ? [mr.assignee] : [])).filter(Boolean).map((user) => normalizeUser(user, host)),
+            reviewers: (mr.reviewers ?? []).filter(Boolean).map((user) => normalizeUser(user, host)),
+            labels: (mr.labels ?? []).map((label) => typeof label === "string" ? label : String(label?.title ?? "")),
+            comments: Number(mr.user_notes_count ?? 0),
+        };
+    }
+
+    const mergeRequestNotes = (notes) => (Array.isArray(notes) ? notes : []).filter((note) => !note.system).map((note) => ({
+        id: note.id,
+        body: String(note.body ?? ""),
+        createdAt: note.created_at ?? null,
+        author: note.author ? normalizeUser(note.author, host) : null,
+        internal: false,
+    }));
+
+    async function listMergeRequests(filter = {}, { first = 50, page = 1 } = {}) {
+        const state = String(filter.state ?? "opened").toLowerCase();
+        if (!["opened", "closed", "merged", "all"].includes(state)) throw invalid('Merge request state must be "opened", "closed", "merged" or "all".');
+        const requestedSize = Number(first);
+        if (!Number.isSafeInteger(requestedSize) || requestedSize < 1) throw invalid("Merge request page size must be a positive integer.");
+        const perPage = Math.min(requestedSize, 100);
+        const pageNumber = Number(page);
+        if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) throw invalid("Merge request page must be a positive integer.");
+        const query = { state, per_page: String(perPage), page: String(pageNumber), order_by: "updated_at", sort: "desc" };
+        const search = String(filter.search ?? "").trim();
+        if (search) query.search = search.slice(0, 200);
+        const rows = await rest("/merge_requests", { query });
+        if (!Array.isArray(rows)) throw new GitLabError("bad_response", "GitLab did not return a merge request list.");
+        const hasNextPage = rows.length === perPage;
+        return { items: rows.map(normalizeMergeRequest), total: null, hasNextPage, nextPage: hasNextPage ? pageNumber + 1 : null };
+    }
+
+    async function getMergeRequest(iid) {
+        const number = mergeRequestIid(iid);
+        const [raw, notes] = await Promise.all([
+            rest(`/merge_requests/${number}`),
+            rest(`/merge_requests/${number}/notes`, { query: { per_page: "100", sort: "asc" } }),
+        ]);
+        if (!raw) throw new GitLabError("not_found", `Merge request !${number} does not exist in ${projectPath}.`);
+        return { ...normalizeMergeRequest(raw), discussions: mergeRequestNotes(notes) };
+    }
+
+    async function createMergeRequest(input = {}) {
+        const title = parseTitle(input.title);
+        const sourceBranch = branchName(input.sourceBranch, "A source branch");
+        const targetBranch = branchName(input.targetBranch, "A target branch");
+        const payload = {
+            title,
+            source_branch: sourceBranch,
+            target_branch: targetBranch,
+            ...(input.description !== undefined && { description: parseText(input.description, "The description") }),
+            ...(input.draft !== undefined && { draft: Boolean(input.draft) }),
+            ...(input.labels !== undefined && { labels: labelNames(input.labels).join(",") }),
+        };
+        return normalizeMergeRequest(await rest("/merge_requests", { method: "POST", body: payload }));
+    }
+
+    async function updateMergeRequest(iid, patch = {}) {
+        const number = mergeRequestIid(iid);
+        const payload = {};
+        if (patch.title !== undefined) payload.title = parseTitle(patch.title);
+        if (patch.description !== undefined) payload.description = parseText(patch.description, "The description");
+        if (patch.targetBranch !== undefined) {
+            payload.target_branch = branchName(patch.targetBranch, "A target branch");
+        }
+        if (patch.draft !== undefined) payload.draft = Boolean(patch.draft);
+        if (patch.labels !== undefined) payload.labels = labelNames(patch.labels).join(",");
+        if (patch.state !== undefined) {
+            if (!["opened", "open", "closed", "close", "reopen"].includes(String(patch.state).toLowerCase())) throw invalid('state must be "opened" or "closed".');
+            payload.state_event = /^clos/i.test(patch.state) ? "close" : "reopen";
+        }
+        if (!Object.keys(payload).length) throw invalid("Nothing to update.");
+        return normalizeMergeRequest(await rest(`/merge_requests/${number}`, { method: "PUT", body: payload }));
+    }
+
+    async function commentMergeRequest(iid, body) {
+        const text = parseText(body, "The comment").trim();
+        if (!text) throw invalid("A comment cannot be empty.");
+        const note = await rest(`/merge_requests/${mergeRequestIid(iid)}/notes`, { method: "POST", body: { body: text } });
+        return mergeRequestNotes([note])[0] ?? null;
+    }
+
+    async function approveMergeRequest(iid) {
+        await rest(`/merge_requests/${mergeRequestIid(iid)}/approve`, { method: "POST", body: {} });
+        return getMergeRequest(iid);
+    }
+
+    async function mergeMergeRequest(iid, options = {}) {
+        const number = mergeRequestIid(iid);
+        const body = {};
+        if (options.mergeWhenPipelineSucceeds !== undefined) body.merge_when_pipeline_succeeds = Boolean(options.mergeWhenPipelineSucceeds);
+        if (options.shouldRemoveSourceBranch !== undefined) body.should_remove_source_branch = Boolean(options.shouldRemoveSourceBranch);
+        const result = await rest(`/merge_requests/${number}/merge`, { method: "PUT", body });
+        return result ? normalizeMergeRequest(result) : getMergeRequest(number);
+    }
 
     function remember(item) {
         ids.set(item.iid, item.id);
@@ -772,5 +921,5 @@ export function createService({ host, projectPath, run = runGlab, now = () => Da
         return unwrap(data.workItemRemoveLinkedItems, "work item");
     }
 
-    return { host, projectPath, meta, list, get, create, update, comment, link, unlink };
+    return { host, projectPath, meta, list, get, create, update, comment, link, unlink, listMergeRequests, getMergeRequest, createMergeRequest, updateMergeRequest, commentMergeRequest, approveMergeRequest, mergeMergeRequest };
 }

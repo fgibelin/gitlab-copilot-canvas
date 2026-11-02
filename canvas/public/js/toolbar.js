@@ -1,7 +1,7 @@
 // Toolbar: project switcher, counts, view toggle and all filter controls. Built once; sync() mirrors the state.
 import { avatar, dayLabel, debounce, h, icon, labelChip, setChildren, toast, typeIcon } from "./dom.js";
 import { togglePicker } from "./pickers.js";
-import { filtersActive, notifyError, refreshAll, resetFilters, state, switchProject, updateView } from "./state.js";
+import { filtersActive, notifyError, refreshAll, resetFilters, setDomain, state, switchProject, updateView } from "./state.js";
 
 const SORT_OPTIONS = [
     ["updated_desc", "Recently updated"],
@@ -75,6 +75,7 @@ export function mountToolbar(root, { onCreate }) {
     const live = h("span", { class: "live-dot", role: "img" });
     const refreshIcon = icon("refresh", { size: 15 });
     const refreshBtn = h("button", { class: "icon-btn", type: "button", title: "Refresh", "aria-label": "Refresh", onclick: () => refreshAll({ meta: true }) }, refreshIcon);
+    const domains = segmented("Workspace", [["items", "Work items"], ["merge_requests", "Merge requests"]], (domain) => setDomain(domain));
     const modes = segmented("View", [["list", "List", "list"], ["board", "Board", "board"]], (mode) => updateView({ mode }), { withIcons: true });
     const newBtn = h("button", { class: "btn primary", type: "button", title: "New work item (N)", onclick: () => onCreate() }, icon("plus", { size: 14 }), h("span", {}, "New"));
 
@@ -104,7 +105,7 @@ export function mountToolbar(root, { onCreate }) {
     const clearBtn = h("button", { class: "link-btn", type: "button", onclick: () => resetFilters() }, "Clear filters");
 
     setChildren(root,
-        h("div", { class: "tb-row tb-top" }, projectBtn, count, h("span", { class: "tb-spacer" }), saving, live, refreshBtn, modes.el, newBtn),
+        h("div", { class: "tb-row tb-top" }, projectBtn, domains.el, count, h("span", { class: "tb-spacer" }), saving, live, refreshBtn, modes.el, newBtn),
         h("div", { class: "tb-row tb-filters" }, search, states.el, type.el, assignee.el, label.el, milestone.el, sort.el, group.el, clearBtn),
     );
 
@@ -228,6 +229,7 @@ export function mountToolbar(root, { onCreate }) {
     function sync() {
         const { view, meta } = state;
         const f = view.filters;
+        const mergeRequests = state.domain === "merge_requests";
         const full = meta?.project?.fullPath ?? state.project?.path ?? "Choose project";
         projectName.textContent = full;
         projectBtn.title = `${full}${meta?.host ? ` on ${meta.host}` : ""} (click to switch project)`;
@@ -237,6 +239,12 @@ export function mountToolbar(root, { onCreate }) {
         live.dataset.status = state.live;
         live.title = state.live === "live" ? "Live updates connected" : state.live === "reconnecting" ? "Reconnecting to live updates…" : state.live === "closed" ? "Live updates are off. Use refresh." : "Connecting…";
         live.setAttribute("aria-label", live.title);
+        domains.set(state.domain);
+        refreshBtn.hidden = mergeRequests;
+        count.hidden = mergeRequests;
+        modes.el.hidden = mergeRequests;
+        newBtn.hidden = mergeRequests;
+        root.querySelector(".tb-filters").hidden = mergeRequests;
         modes.set(view.mode);
         const byState = view.mode === "board" && view.groupBy === "state";
         states.set(byState ? "all" : f.state, byState);
