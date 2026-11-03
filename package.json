@@ -934,6 +934,9 @@
     "vscode:prepublish": "npm run check",
     "test:vscode": "node scripts/test-vscode.mjs"
   },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
   "devDependencies": {
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
