@@ -2,7 +2,7 @@
   "name": "gitlab-copilot-canvas",
   "displayName": "GitLab Project Management Canvas",
   "description": "Manage GitLab work items and merge requests with Copilot Chat tools.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "fgibelin",
   "license": "MIT",
   "type": "module",
@@ -934,12 +934,12 @@
     "vscode:prepublish": "npm run check",
     "test:vscode": "node scripts/test-vscode.mjs"
   },
-  "overrides": {
-    "minimatch": "11.0.1"
-  },
   "devDependencies": {
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
     "ajv": "^8.20.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }

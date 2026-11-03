@@ -38,7 +38,7 @@ before starting Copilot App or VS Code.
 Ask Copilot App to install the extension from this repository folder:
 
 ```text
-https://github.com/fgibelin/gitlab-copilot-canvas/tree/v0.4.1/gitlab-copilot-canvas
+https://github.com/fgibelin/gitlab-copilot-canvas/tree/v0.4.2/gitlab-copilot-canvas
 ```
 
 Choose **user scope** to make it available in every GitLab project, or project
