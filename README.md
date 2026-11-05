@@ -1,6 +1,6 @@
 # GitLab Copilot Canvas
 
-[![Open in Copilot App](https://img.shields.io/badge/Install%20in%20Copilot%20App-00ad03?style=for-the-badge&logo=githubcopilot&logoColor=white)](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fsession%2Fnew%2Ffgibelin%2Fgitlab-copilot-canvas%3Fmode%3Dinteractive%26prompt%3DInstall%2520the%2520canvas%2520extension%2520from%2520https%253A%252F%252Fgithub.com%252Ffgibelin%252Fgitlab-copilot-canvas%252Ftree%252Fv0.4.3%252Fgitlab-copilot-canvas%2520at%2520user%2520scope%252C%2520then%2520tell%2520me%2520how%2520to%2520open%2520the%2520GitLab%2520canvas.)
+[![Open in Copilot App](https://img.shields.io/badge/Install%20in%20Copilot%20App-1f883d?style=for-the-badge&logo=githubcopilot&logoColor=white)](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fsession%2Fnew%2Ffgibelin%2Fgitlab-copilot-canvas%3Fmode%3Dinteractive%26prompt%3DInstall%2520the%2520canvas%2520extension%2520from%2520https%253A%252F%252Fgithub.com%252Ffgibelin%252Fgitlab-copilot-canvas%252Ftree%252Fv0.4.3%252Fgitlab-copilot-canvas%2520at%2520user%2520scope%252C%2520then%2520tell%2520me%2520how%2520to%2520open%2520the%2520GitLab%2520canvas.)
 <!-- This link wraps ghapp://session/new/... in the hosted launcher. Its prompt pins the release tag: update it together with the install URL under "Install > Copilot App" on each release. -->
 
 Manage GitLab work items and merge requests in **GitHub Copilot App** or
