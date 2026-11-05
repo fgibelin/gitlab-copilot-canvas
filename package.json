@@ -2,7 +2,7 @@
   "name": "gitlab-copilot-canvas",
   "displayName": "GitLab Project Management Canvas",
   "description": "Manage GitLab work items and merge requests with Copilot Chat tools.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "fgibelin",
   "license": "MIT",
   "type": "module",
