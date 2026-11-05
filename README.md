@@ -7,6 +7,148 @@ editing, discussing, approving and merging. Both hosts use the same UI and
 GitLab implementation. No Flask application, hosted service or project-specific
 configuration is required.
 
+## Prerequisites
+
+Complete these steps once on each machine where you use the canvas. Git must
+also be installed.
+
+### 1. Add an SSH key to your GitLab account
+
+Git uses an SSH key to clone, fetch and push GitLab repositories, including the
+worktrees created by **Open session**, without asking for a password. One key
+works for every project your account can access.
+
+1. Check for an existing key with `ls ~/.ssh/id_ed25519.pub`. If there is none,
+   generate an ED25519 key pair (preferred by GitLab), accept the default file
+   location and choose a passphrase, then add the private key to `ssh-agent`:
+
+   ```sh
+   ssh-keygen -t ed25519 -C "you@example.com"
+   ssh-add ~/.ssh/id_ed25519
+   ```
+
+2. Copy the **public** key (`.pub`). Never share the private key.
+
+   ```sh
+   # macOS
+   tr -d '\n' < ~/.ssh/id_ed25519.pub | pbcopy
+   # Linux (X11)
+   xclip -sel clip < ~/.ssh/id_ed25519.pub
+   # Windows
+   cat ~/.ssh/id_ed25519.pub | clip
+   ```
+
+3. In GitLab, select your avatar, then **Edit profile** > **Access** >
+   **SSH keys** > **Add new key**. Paste the key, enter a title such as
+   `Work laptop`, optionally change the usage type and expiration date, and
+   select **Add key**.
+
+4. Verify the connection:
+
+   ```sh
+   ssh -T git@gitlab.com
+   # Self-managed GitLab
+   ssh -T git@gitlab.example.com
+   ```
+
+   On the first connection, compare the host fingerprint with GitLab's published
+   SSH host key fingerprints before accepting it. Success prints
+   `Welcome to GitLab, @username!`.
+
+Once `glab` is signed in (step 3), you can also upload a key from the terminal:
+`glab ssh-key add ~/.ssh/id_ed25519.pub --title "Work laptop"`. See
+[Use SSH keys to communicate with GitLab](https://docs.gitlab.com/user/ssh/).
+
+### 2. Install the GitLab CLI (`glab`)
+
+The extension sends every GitLab request through
+[GitLab CLI (`glab`)](https://docs.gitlab.com/editor_extensions/gitlab_cli/) and
+reuses its sign-in; it never asks for or stores a GitLab access token.
+
+| OS | Command |
+| --- | --- |
+| macOS, Linux | `brew install glab` (officially supported) |
+| Windows | `winget install glab.glab` (community-maintained), or `brew install glab` in WSL |
+
+Other packages and prebuilt binaries are listed in the
+[installation options](https://gitlab.com/gitlab-org/cli/-/blob/main/docs/installation_options.md)
+and on the [releases page](https://gitlab.com/gitlab-org/cli/-/releases).
+Confirm the installation with `glab version`.
+
+Set `GLAB_PATH` to an absolute executable path (for example, the output of
+`command -v glab`) if the host cannot find the CLI. Configure it in the
+environment before starting Copilot App or VS Code.
+
+### 3. Sign in with `glab auth login`
+
+Authenticate against each GitLab host you use:
+
+```sh
+# GitLab.com
+glab auth login --hostname gitlab.com
+
+# Self-managed GitLab
+glab auth login --hostname gitlab.example.com
+```
+
+Follow the interactive prompts:
+
+- **Login method:** choose **Web** to authorize `glab` in your browser with
+  OAuth, or **Device** on a machine without a browser. Alternatively, paste a
+  personal access token with at least the `api` and `write_repository` scopes.
+- **Git protocol:** choose **SSH** to use the key from step 1.
+- **Self-managed GitLab with OAuth:** first create a non-confidential OAuth
+  application in GitLab and run
+  `glab config set client_id <APPLICATION_ID> --host gitlab.example.com`, or sign
+  in with a personal access token instead.
+
+Check the result with `glab auth status`. `glab` stores credentials in the
+operating system keyring when one is available. The signed-in account
+determines which projects the canvas can read and change. See
+[Authenticate with GitLab](https://docs.gitlab.com/cli/authentication/).
+
+### 4. Configure the GitLab MCP server in Copilot App
+
+The canvas works without it, but the
+[GitLab MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)
+gives Copilot's agent GitLab tools, such as reading work items, merge requests
+and pipelines, in any session, even when the canvas is closed. This step applies
+to Copilot App; VS Code configures MCP servers separately.
+
+GitLab must allow access to the MCP server: on GitLab.com, a top-level group
+owner turns it on for the group; on GitLab Self-Managed and GitLab Dedicated,
+an administrator turns it on for the instance.
+
+1. In Copilot App, click **Customize** in the sidebar, then **MCP**.
+2. Add a custom server named `GitLab` that uses HTTP transport with the URL
+   `https://gitlab.com/api/v4/mcp` (or `https://gitlab.example.com/api/v4/mcp`
+   for self-managed GitLab).
+3. When your browser opens GitLab's authorization page, review and approve the
+   request. GitLab registers Copilot as an OAuth application automatically, so
+   you do not need a token.
+4. Confirm that the server appears under **Customize** > **Installed**. If it
+   reports that authentication is required or has expired, choose **Sign in**
+   there.
+
+Alternatively, add the server to `~/.copilot/mcp-config.json`, which Copilot App
+shares with Copilot CLI, then start a new session:
+
+```json
+{
+  "mcpServers": {
+    "GitLab": {
+      "type": "http",
+      "url": "https://gitlab.com/api/v4/mcp",
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+The GitLab MCP server rejects legacy personal access tokens, so do not reuse
+the `glab` token here. Its tools act with your GitLab permissions, and their
+results are untrusted GitLab content, not instructions.
+
 ## Install
 
 | Host | Distribution | Integration |
@@ -14,24 +156,7 @@ configuration is required.
 | Copilot App | [`gitlab-copilot-canvas/`](https://github.com/fgibelin/gitlab-copilot-canvas/tree/main/gitlab-copilot-canvas) or release archive | Native extension canvas and 20 agent actions |
 | VS Code desktop | `.vsix` from [Releases](https://github.com/fgibelin/gitlab-copilot-canvas/releases) | Native webview and 20 Copilot Chat tools |
 
-### Prerequisites
-
-Install [GitLab CLI (`glab`)](https://docs.gitlab.com/editor_extensions/gitlab_cli/)
-and authenticate against the GitLab host you use:
-
-```sh
-# macOS
-brew install glab
-glab auth login --hostname gitlab.com
-
-# Self-managed GitLab
-glab auth login --hostname gitlab.example.com
-```
-
-Git must also be installed. The extension delegates authentication to `glab`;
-it never asks for or stores a GitLab access token. Set `GLAB_PATH` to an absolute
-executable path if the host cannot find the CLI. Configure it in the environment
-before starting Copilot App or VS Code.
+Complete the [Prerequisites](#prerequisites) first.
 
 ### Copilot App
 
